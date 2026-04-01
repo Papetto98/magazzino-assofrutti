@@ -12,7 +12,7 @@ const xls=(data,cols,name)=>{const rows=data.map(r=>{const o={};cols.forEach(c=>
 // DUAL THEMES
 const LIGHT={bg:"#f5f3ef",sf:"#ffffff",sfH:"#f0ece4",card:"#ffffff",bd:"#e2ddd4",bdH:"#c9a84c88",acc:"#b8892e",accD:"#8a6820",accL:"#f5e6c8",g:"#2d8a4e",gD:"#e6f5ec",r:"#c0392b",rD:"#fbeaea",o:"#d68910",oD:"#fdf2e0",b:"#2471a3",bD:"#e4f0f9",t:"#2c2418",tD:"#6b5e4f",tM:"#9a8d7e",pk:"#faf6ef",pkS:"#f5eed8",zebra:C.zebra,thBg:"#f8f5f0"};
 const DARK={bg:"#080c10",sf:"#12171e",sfH:"#1a2029",card:"#151b24",bd:"#252d38",bdH:"#c9a84c88",acc:"#d4a855",accD:"#a3833e",accL:"#d4a85520",g:"#4ade80",gD:"#4ade8018",r:"#f87171",rD:"#f8717118",o:"#fb923c",oD:"#fb923c18",b:"#60a5fa",bD:"#60a5fa18",t:"#e8e0d4",tD:"#8899aa",tM:"#5a6a7a",pk:"#1a2029",pkS:"#1e2836",zebra:"#111820",thBg:"#0d1218"};
-let C=LIGHT;
+var C=LIGHT;
 const BD={1:{l:"Eccellente",c:"#1e8449",bg:"#e8f8ef"},2:{l:"Buona",c:"#7d9a1e",bg:"#f3f9e0"},3:{l:"Media",c:"#d68910",bg:"#fdf2e0"},4:{l:"Bassa",c:"#c0392b",bg:"#fbeaea"},5:{l:"Critica",c:"#922b21",bg:"#f5d5d1"}};
 const TC={"CONVENZIONALI":"#b8892e","BIOLOGICHE":"#1e8449","GIFFONI":"#2471a3","FAIR FOR LIFE":"#7d3c98","BIOSUISSE":"#c0392b"};
 
@@ -379,12 +379,12 @@ export default function App(){
   const[session,setSession]=useState(null);const[profile,setProfile]=useState(null);const[authLd,setAuthLd]=useState(true);
   const[page,setPage]=useState("dashboard");const[lotti,setLotti]=useState([]);const[contratti,setContratti]=useState([]);const[movimenti,setMovimenti]=useState([]);const[sO,setSO]=useState(true);const[dbErr,setDbErr]=useState(null);
   const[dashFilter,setDashFilter]=useState(null);
-  const[theme,setTheme]=useState(()=>{try{return localStorage.getItem("af_theme")||"light"}catch(e){return "light"}});
+  const[theme,setTheme]=useState("light");
 
-  // Apply theme globally
+  // Apply theme
   C=theme==="dark"?DARK:LIGHT;
-
-  const toggleTheme=t=>{setTheme(t);try{localStorage.setItem("af_theme",t)}catch(e){}};
+  const toggleTheme=t=>{setTheme(t);try{window.localStorage.setItem("af_theme",t)}catch(e){}};
+  useEffect(()=>{try{const saved=window.localStorage.getItem("af_theme");if(saved)setTheme(saved)}catch(e){}},[]);
 
   useEffect(()=>{supabase.auth.getSession().then(({data:{session:s}})=>{setSession(s);if(!s)setAuthLd(false)});const{data:{subscription}}=supabase.auth.onAuthStateChange((_,s)=>{setSession(s);if(!s){setProfile(null);setAuthLd(false)}});return()=>subscription.unsubscribe()},[]);
   useEffect(()=>{if(!session?.user)return;supabase.from("user_profiles").select("*").eq("id",session.user.id).single().then(({data})=>{setProfile(data);setAuthLd(false)})},[session]);
