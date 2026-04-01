@@ -9,8 +9,10 @@ const dsp=l=>(l.q_iniz||0)-(l.mov||0);
 const fmtD=d=>{if(!d)return"-";const p=String(d).split("T")[0].split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:d};
 const xls=(data,cols,name)=>{const rows=data.map(r=>{const o={};cols.forEach(c=>{o[c.label]=c.gv?c.gv(r):r[c.key]??""});return o});const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Dati");XLSX.writeFile(wb,name+".xlsx")};
 
-// LIGHT THEME
-const C={bg:"#f5f3ef",sf:"#ffffff",sfH:"#f0ece4",card:"#ffffff",bd:"#e2ddd4",bdH:"#c9a84c88",acc:"#b8892e",accD:"#8a6820",accL:"#f5e6c8",g:"#2d8a4e",gD:"#e6f5ec",r:"#c0392b",rD:"#fbeaea",o:"#d68910",oD:"#fdf2e0",b:"#2471a3",bD:"#e4f0f9",t:"#2c2418",tD:"#6b5e4f",tM:"#9a8d7e",pk:"#faf6ef",pkS:"#f5eed8"};
+// DUAL THEMES
+const LIGHT={bg:"#f5f3ef",sf:"#ffffff",sfH:"#f0ece4",card:"#ffffff",bd:"#e2ddd4",bdH:"#c9a84c88",acc:"#b8892e",accD:"#8a6820",accL:"#f5e6c8",g:"#2d8a4e",gD:"#e6f5ec",r:"#c0392b",rD:"#fbeaea",o:"#d68910",oD:"#fdf2e0",b:"#2471a3",bD:"#e4f0f9",t:"#2c2418",tD:"#6b5e4f",tM:"#9a8d7e",pk:"#faf6ef",pkS:"#f5eed8",zebra:"#faf8f4",thBg:"#f8f5f0"};
+const DARK={bg:"#080c10",sf:"#12171e",sfH:"#1a2029",card:"#151b24",bd:"#252d38",bdH:"#c9a84c88",acc:"#d4a855",accD:"#a3833e",accL:"#d4a85520",g:"#4ade80",gD:"#4ade8018",r:"#f87171",rD:"#f8717118",o:"#fb923c",oD:"#fb923c18",b:"#60a5fa",bD:"#60a5fa18",t:"#e8e0d4",tD:"#8899aa",tM:"#5a6a7a",pk:"#1a2029",pkS:"#1e2836",zebra:"#111820",thBg:"#0d1218"};
+let C=LIGHT;
 const BD={1:{l:"Eccellente",c:"#1e8449",bg:"#e8f8ef"},2:{l:"Buona",c:"#7d9a1e",bg:"#f3f9e0"},3:{l:"Media",c:"#d68910",bg:"#fdf2e0"},4:{l:"Bassa",c:"#c0392b",bg:"#fbeaea"},5:{l:"Critica",c:"#922b21",bg:"#f5d5d1"}};
 const TC={"CONVENZIONALI":"#b8892e","BIOLOGICHE":"#1e8449","GIFFONI":"#2471a3","FAIR FOR LIFE":"#7d3c98","BIOSUISSE":"#c0392b"};
 
@@ -28,23 +30,34 @@ const XC={
 };
 
 const CSS=`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800;900&display=swap');
-::selection{background:#b8892e44;color:#2c2418}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#f5f3ef}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+::selection{background:#b8892e44}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
 @keyframes barGrow{from{width:0}}
-@media print{body{background:white!important}[data-no-print]{display:none!important}
-table{border-collapse:collapse;width:100%;page-break-inside:auto}
-tr{page-break-inside:avoid;page-break-after:auto}
-th{background:#f0ece4!important;border:1px solid #ccc;padding:6px 8px;font-size:10px;text-transform:uppercase;font-weight:700}
-td{border:1px solid #ddd;padding:5px 8px;font-size:10px}
-h1,h2,h3{font-size:14px!important;margin-bottom:8px!important}
-.print-total{display:block!important;border-top:2px solid #333;padding-top:8px;font-weight:700;font-size:12px}
-@page{margin:1cm;size:landscape}}`;
+@media print{
+  *{color:black!important;background:white!important;box-shadow:none!important;text-shadow:none!important;border-color:#ccc!important}
+  body,html,#root{background:white!important}
+  [data-no-print]{display:none!important}
+  table{width:100%!important;border-collapse:collapse!important;page-break-inside:auto!important;font-size:9px!important}
+  tr{page-break-inside:avoid!important}
+  th{background:#eee!important;border:1px solid #999!important;padding:4px 6px!important;font-size:8px!important;font-weight:700!important;text-transform:uppercase!important}
+  td{border:1px solid #bbb!important;padding:3px 6px!important;font-size:9px!important;white-space:normal!important;word-break:break-word!important}
+  span{background:none!important;border:none!important;padding:0!important;font-size:9px!important}
+  h1{font-size:16px!important}h2,h3{font-size:12px!important}
+  div[style*="overflow"]{overflow:visible!important;max-height:none!important}
+  @page{margin:0.8cm;size:A4 landscape}
+}
+@media(max-width:1200px){
+  td,th{padding:6px 8px!important;font-size:12px!important}
+}
+@media(max-width:900px){
+  td,th{padding:4px 6px!important;font-size:11px!important}
+}`;
 
 // === UI ===
 const Badge=({children,color,bg,onClick,style:s})=><span onClick={onClick} style={{display:"inline-block",padding:"3px 10px",borderRadius:5,fontSize:11,fontWeight:700,letterSpacing:.3,color:color||C.t,background:bg||"#f0ece4",cursor:onClick?"pointer":"default",transition:"all .15s",...s}} onMouseEnter={e=>{if(onClick)e.currentTarget.style.opacity=.8}} onMouseLeave={e=>{e.currentTarget.style.opacity=1}}>{children}</span>;
 const Msg=({msg})=>msg?<div style={{padding:"10px 16px",borderRadius:8,marginBottom:16,background:msg.t==="ok"?C.gD:C.rD,color:msg.t==="ok"?C.g:C.r,border:"1px solid "+(msg.t==="ok"?C.g+"33":C.r+"33"),fontSize:13,animation:"fadeUp .3s both"}}>{msg.x}</div>:null;
-const Tbl=({cols,data,onRow})=><div style={{borderRadius:10,border:"1px solid "+C.bd,overflow:"hidden",background:C.sf}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{cols.map((c,i)=><th key={i} style={{padding:"10px 12px",textAlign:"left",background:"#f8f5f0",color:C.tD,fontSize:10,textTransform:"uppercase",letterSpacing:.8,borderBottom:"2px solid "+C.acc,whiteSpace:"nowrap",fontWeight:700}}>{c.label}</th>)}</tr></thead><tbody>{data.length===0?<tr><td colSpan={cols.length} style={{padding:30,textAlign:"center",color:C.tM}}>Nessun dato</td></tr>:data.map((row,ri)=><tr key={row.id||ri} onClick={()=>onRow&&onRow(row)} style={{cursor:onRow?"pointer":"default",background:ri%2===0?C.sf:"#faf8f4",transition:"background .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.sfH}} onMouseLeave={e=>{e.currentTarget.style.background=ri%2===0?C.sf:"#faf8f4"}}>{cols.map((c,ci)=><td key={ci} style={{padding:"9px 12px",borderBottom:"1px solid #eee",whiteSpace:"nowrap",color:C.t}}>{c.render?c.render(row):row[c.key]}</td>)}</tr>)}</tbody></table></div>;
+const Tbl=({cols,data,onRow})=><div style={{borderRadius:10,border:"1px solid "+C.bd,overflow:"auto",background:C.sf,maxWidth:"100%"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:600}}><thead><tr>{cols.map((c,i)=><th key={i} style={{padding:"10px 12px",textAlign:"left",background:C.thBg,color:C.tD,fontSize:10,textTransform:"uppercase",letterSpacing:.8,borderBottom:"2px solid "+C.acc,whiteSpace:"nowrap",fontWeight:700}}>{c.label}</th>)}</tr></thead><tbody>{data.length===0?<tr><td colSpan={cols.length} style={{padding:30,textAlign:"center",color:C.tM}}>Nessun dato</td></tr>:data.map((row,ri)=><tr key={row.id||ri} onClick={()=>onRow&&onRow(row)} style={{cursor:onRow?"pointer":"default",background:ri%2===0?C.sf:C.zebra,transition:"background .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.sfH}} onMouseLeave={e=>{e.currentTarget.style.background=ri%2===0?C.sf:C.zebra}}>{cols.map((c,ci)=><td key={ci} style={{padding:"9px 12px",borderBottom:"1px solid "+C.bd+"66",whiteSpace:"nowrap",color:C.t}}>{c.render?c.render(row):row[c.key]}</td>)}</tr>)}</tbody></table></div>;
 const Sel=({label,value,onChange,options,style:s})=><div style={{display:"flex",flexDirection:"column",gap:4,...s}}>{label&&<label style={{fontSize:10,color:C.tD,textTransform:"uppercase",letterSpacing:.8,fontWeight:600}}>{label}</label>}<select value={value} onChange={e=>onChange(e.target.value)} style={{padding:"8px 12px",background:C.sf,border:"1px solid "+C.bd,borderRadius:8,color:C.t,fontSize:13,outline:"none"}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>;
 const Inp=({label,value,onChange,type,placeholder,style:s,disabled})=><div style={{display:"flex",flexDirection:"column",gap:4,...s}}>{label&&<label style={{fontSize:10,color:C.tD,textTransform:"uppercase",letterSpacing:.8,fontWeight:600}}>{label}</label>}<input type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled} style={{padding:"8px 12px",background:disabled?"#eee":C.sf,border:"1px solid "+C.bd,borderRadius:8,color:disabled?C.tM:C.t,fontSize:13,outline:"none",opacity:disabled?.6:1}}/></div>;
 const Btn=({children,onClick,primary,small,disabled,danger,style:s})=><button onClick={onClick} disabled={disabled} style={{padding:small?"6px 14px":"10px 20px",borderRadius:8,border:"1px solid "+(danger?C.r:primary?C.acc:C.bd),cursor:disabled?"not-allowed":"pointer",fontWeight:700,fontSize:small?12:13,background:danger?C.r:primary?C.acc:C.sf,color:danger?"#fff":primary?"#fff":C.t,opacity:disabled?.5:1,transition:"all .15s",boxShadow:primary?"0 2px 8px "+C.acc+"33":"none",...s}} onMouseEnter={e=>{if(!disabled)e.currentTarget.style.transform="translateY(-1px)"}} onMouseLeave={e=>{e.currentTarget.style.transform=""}}>{children}</button>;
@@ -365,6 +378,12 @@ export default function App(){
   const[session,setSession]=useState(null);const[profile,setProfile]=useState(null);const[authLd,setAuthLd]=useState(true);
   const[page,setPage]=useState("dashboard");const[lotti,setLotti]=useState([]);const[contratti,setContratti]=useState([]);const[movimenti,setMovimenti]=useState([]);const[sO,setSO]=useState(true);const[dbErr,setDbErr]=useState(null);
   const[dashFilter,setDashFilter]=useState(null);
+  const[theme,setTheme]=useState(()=>{try{return localStorage.getItem("af_theme")||"light"}catch(e){return "light"}});
+
+  // Apply theme globally
+  C=theme==="dark"?DARK:LIGHT;
+
+  const toggleTheme=t=>{setTheme(t);try{localStorage.setItem("af_theme",t)}catch(e){}};
 
   useEffect(()=>{supabase.auth.getSession().then(({data:{session:s}})=>{setSession(s);if(!s)setAuthLd(false)});const{data:{subscription}}=supabase.auth.onAuthStateChange((_,s)=>{setSession(s);if(!s){setProfile(null);setAuthLd(false)}});return()=>subscription.unsubscribe()},[]);
   useEffect(()=>{if(!session?.user)return;supabase.from("user_profiles").select("*").eq("id",session.user.id).single().then(({data})=>{setProfile(data);setAuthLd(false)})},[session]);
@@ -406,6 +425,15 @@ export default function App(){
         </div>
       )}</nav>
       {sO&&<div style={{padding:"14px 16px",borderTop:"1px solid "+C.bd}}>
+        {/* THEME TOGGLE */}
+        <div style={{display:"flex",gap:4,marginBottom:12}}>
+          <button onClick={()=>toggleTheme("light")} title="Tema chiaro" style={{flex:1,padding:"6px",borderRadius:6,border:"1px solid "+(theme==="light"?C.acc:C.bd),background:theme==="light"?C.accL:"transparent",cursor:"pointer",fontSize:16,transition:"all .15s",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+            <span>&#9788;</span>{sO&&<span style={{fontSize:10,color:theme==="light"?C.acc:C.tM,fontWeight:600}}>Chiaro</span>}
+          </button>
+          <button onClick={()=>toggleTheme("dark")} title="Tema scuro" style={{flex:1,padding:"6px",borderRadius:6,border:"1px solid "+(theme==="dark"?C.acc:C.bd),background:theme==="dark"?C.accL:"transparent",cursor:"pointer",fontSize:16,transition:"all .15s",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+            <span>&#9790;</span>{sO&&<span style={{fontSize:10,color:theme==="dark"?C.acc:C.tM,fontWeight:600}}>Scuro</span>}
+          </button>
+        </div>
         <div style={{fontSize:12,color:C.tD,marginBottom:6,fontWeight:500}}>{profile?.nome||session?.user?.email}</div>
         <Badge color={isAdm?C.acc:C.b} bg={isAdm?C.accL:C.bD}>{profile?.ruolo||"..."}</Badge>
         <div style={{display:"flex",gap:8,marginTop:12}}>
