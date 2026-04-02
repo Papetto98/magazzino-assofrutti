@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 import * as XLSX from "xlsx";
 
 const qi=l=>Number((((l.mv||0)*100*5+(l.mo||0)*100*7+(l.co||0)*100*3)/15).toFixed(2));
-const bn=i=>i<=2.5?1:i<=3?2:i<=4.5?3:i<=6?4:5;
+const bn=i=>i<=1.5?1:i<=3?2:i<=5?3:i<=7?4:5;
 const pct=v=>((v||0)*100).toFixed(2)+"%";
 const dsp=l=>(l.q_iniz||0)-(l.mov||0);
 const fmtD=d=>{if(!d)return"-";const p=String(d).split("T")[0].split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:d};
