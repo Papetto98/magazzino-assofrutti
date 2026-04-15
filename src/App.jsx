@@ -42,7 +42,7 @@ const CSS=`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@40
 
 const Badge=({children,color,bg,onClick,style:s})=><span onClick={onClick} style={{display:"inline-block",padding:"3px 10px",borderRadius:5,fontSize:11,fontWeight:700,letterSpacing:.3,color:color||C.t,background:bg||C.zebra,cursor:onClick?"pointer":"default",transition:"all .15s",...s}}>{children}</span>;
 const Msg=({msg})=>msg?<div style={{padding:"10px 16px",borderRadius:8,marginBottom:16,background:msg.t==="ok"?C.gD:C.rD,color:msg.t==="ok"?C.g:C.r,border:"1px solid "+(msg.t==="ok"?C.g+"33":C.r+"33"),fontSize:13,animation:"fadeUp .3s both"}}>{msg.x}</div>:null;
-const Tbl=({cols,data,onRow,subtotals})=><div style={{borderRadius:10,border:"1px solid "+C.bd,overflow:"auto",background:C.sf,maxWidth:"100%"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:600}}><thead><tr>{cols.map((c,i)=><th key={i} style={{padding:"10px 12px",textAlign:"left",background:C.thBg,color:C.tD,fontSize:10,textTransform:"uppercase",letterSpacing:.8,borderBottom:"2px solid "+C.acc,whiteSpace:"nowrap",fontWeight:700}}>{c.label}</th>)}</tr></thead><tbody>{data.length===0?<tr><td colSpan={cols.length} style={{padding:30,textAlign:"center",color:C.tM}}>Nessun dato</td></tr>:data.map((row,ri)=>row._sub?<tr key={"sub"+ri} style={{background:C.accL,borderBottom:"2px solid "+C.acc}}>{cols.map((c,ci)=><td key={ci} style={{padding:"8px 12px",fontWeight:800,fontSize:12,color:C.acc,whiteSpace:"nowrap"}}>{c.subRender?c.subRender(row):""}</td>)}</tr>:<tr key={row.id||ri} onClick={()=>onRow&&onRow(row)} style={{cursor:onRow?"pointer":"default",background:ri%2===0?C.sf:C.zebra,transition:"background .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.sfH}} onMouseLeave={e=>{e.currentTarget.style.background=ri%2===0?C.sf:C.zebra}}>{cols.map((c,ci)=><td key={ci} style={{padding:"9px 12px",borderBottom:"1px solid "+C.bd+"66",whiteSpace:"nowrap",color:C.t}}>{c.render?c.render(row):row[c.key]}</td>)}</tr>)}</tbody></table></div>;
+const Tbl=({cols,data,onRow})=><div style={{borderRadius:10,border:"1px solid "+C.bd,overflow:"auto",background:C.sf,maxWidth:"100%"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:600}}><thead><tr>{cols.map((c,i)=><th key={i} style={{padding:"10px 12px",textAlign:"left",background:C.thBg,color:C.tD,fontSize:10,textTransform:"uppercase",letterSpacing:.8,borderBottom:"2px solid "+C.acc,whiteSpace:"nowrap",fontWeight:700,position:"sticky",top:0,zIndex:1}}>{c.label}</th>)}</tr></thead><tbody>{data.length===0?<tr><td colSpan={cols.length} style={{padding:30,textAlign:"center",color:C.tM}}>Nessun dato</td></tr>:data.map((row,ri)=>row._blank?<tr key={"bl"+ri}><td colSpan={cols.length} style={{padding:4,background:C.bg}}></td></tr>:row._sub?<tr key={"sub"+ri} style={{background:row._level==="tipo"?C.accL:row._level==="lav"?C.gD:C.zebra,borderTop:row._level==="tipo"?"2px solid "+C.acc:row._level==="lav"?"2px solid "+C.g:"1px solid "+C.bd}}>{cols.map((c,ci)=><td key={ci} style={{padding:"7px 12px",fontWeight:row._level==="tipo"?800:700,fontSize:row._level==="tipo"?12:11,color:row._level==="tipo"?C.acc:row._level==="lav"?C.g:C.tD,whiteSpace:"nowrap",fontStyle:row._level==="cal"?"italic":"normal"}}>{c.subRender?c.subRender(row):""}</td>)}</tr>:<tr key={row.id||ri} onClick={()=>onRow&&onRow(row)} style={{cursor:onRow?"pointer":"default",background:ri%2===0?C.sf:C.zebra,transition:"background .15s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.sfH}} onMouseLeave={e=>{e.currentTarget.style.background=ri%2===0?C.sf:C.zebra}}>{cols.map((c,ci)=><td key={ci} style={{padding:"9px 12px",borderBottom:"1px solid "+C.bd+"66",whiteSpace:"nowrap",color:C.t}}>{c.render?c.render(row):row[c.key]}</td>)}</tr>)}</tbody></table></div>;
 const Sel=({label,value,onChange,options,style:s})=><div style={{display:"flex",flexDirection:"column",gap:4,...s}}>{label&&<label style={{fontSize:10,color:C.tD,textTransform:"uppercase",letterSpacing:.8,fontWeight:600}}>{label}</label>}<select value={value} onChange={e=>onChange(e.target.value)} style={{padding:"8px 12px",background:C.sf,border:"1px solid "+C.bd,borderRadius:8,color:C.t,fontSize:13,outline:"none"}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>;
 const Inp=({label,value,onChange,type,placeholder,style:s,disabled})=><div style={{display:"flex",flexDirection:"column",gap:4,...s}}>{label&&<label style={{fontSize:10,color:C.tD,textTransform:"uppercase",letterSpacing:.8,fontWeight:600}}>{label}</label>}<input type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled} style={{padding:"8px 12px",background:disabled?C.bd+"44":C.sf,border:"1px solid "+C.bd,borderRadius:8,color:disabled?C.tM:C.t,fontSize:13,outline:"none",opacity:disabled?.6:1}}/></div>;
 const Btn=({children,onClick,primary,small,disabled,danger,style:s})=><button onClick={onClick} disabled={disabled} style={{padding:small?"6px 14px":"10px 20px",borderRadius:8,border:"1px solid "+(danger?C.r:primary?C.acc:C.bd),cursor:disabled?"not-allowed":"pointer",fontWeight:700,fontSize:small?12:13,background:danger?C.r:primary?C.acc:C.sf,color:danger||primary?"#fff":C.t,opacity:disabled?.5:1,transition:"all .15s",boxShadow:primary?"0 2px 8px "+C.acc+"33":"none",...s}}>{children}</button>;
@@ -79,22 +79,22 @@ function DashboardPage({lotti,contratti,goPage}){
         <div style={{fontSize:24,fontWeight:900,color,fontFamily:"'DM Mono',monospace"}}>{tTot.toLocaleString()} <span style={{fontSize:13,color:C.tM}}>kg</span></div>
       </div>
       {/* SGUSCIATO detail */}
-      {sgTot>0&&<div style={{marginBottom:14}}><div style={{fontSize:11,color:C.tD,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Sgusciate — {sgTot.toLocaleString()} kg ({sg.length} lotti)</div>
+      {sgTot>0&&<div style={{marginBottom:14}}><div style={{fontSize:13,color:C.tD,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Sgusciate — {sgTot.toLocaleString()} kg ({sg.length} lotti)</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>{calEntries.map(([cal,d])=>{const avgMo=(d.mo/d.n).toFixed(2);const avgCo=(d.co/d.n).toFixed(2);return <div key={cal} onClick={()=>goPage("giacenze",{type:"sg_cal_tipo",val:cal+"|"+tipo})} style={{cursor:"pointer",background:C.zebra,borderRadius:10,padding:"10px 14px",border:"1px solid "+C.bd,flex:"1 1 100px",minWidth:90,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.bdH}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.bd}}>
-        <div style={{fontSize:15,fontWeight:800,color:C.acc,fontFamily:"'DM Mono',monospace"}}>{cal}</div>
-        <div style={{fontSize:16,fontWeight:700,fontFamily:"'DM Mono',monospace",marginTop:4}}>{d.kg.toLocaleString()} <span style={{fontSize:10,color:C.tM}}>kg</span></div>
-        <div style={{fontSize:10,color:C.tM,marginTop:4}}>{d.n} lotti</div>
-        <div style={{display:"flex",gap:8,marginTop:6,fontSize:10}}><span>MO <b style={{color:Number(avgMo)>4?C.r:Number(avgMo)>2?C.o:C.g}}>{avgMo}%</b></span><span>CO <b style={{color:Number(avgCo)>4?C.r:Number(avgCo)>2?C.o:C.g}}>{avgCo}%</b></span></div>
+        <div style={{fontSize:17,fontWeight:800,color:C.acc,fontFamily:"'DM Mono',monospace"}}>{cal}</div>
+        <div style={{fontSize:20,fontWeight:700,fontFamily:"'DM Mono',monospace",marginTop:4}}>{d.kg.toLocaleString()} <span style={{fontSize:12,color:C.tM}}>kg</span></div>
+        <div style={{fontSize:11,color:C.tM,marginTop:4}}>{d.n} lotti</div>
+        <div style={{display:"flex",gap:8,marginTop:6,fontSize:12}}><span>MO <b style={{color:Number(avgMo)>4?C.r:Number(avgMo)>2?C.o:C.g}}>{avgMo}%</b></span><span>CO <b style={{color:Number(avgCo)>4?C.r:Number(avgCo)>2?C.o:C.g}}>{avgCo}%</b></span></div>
       </div>})}</div>
       {/* MO/CO groups */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <div><div style={{fontSize:10,color:C.tD,fontWeight:600,marginBottom:6}}>MARCIO OCCULTO</div><div style={{display:"flex",gap:4}}>{moGrp.map((n,i)=><div key={i} style={{flex:1,textAlign:"center",padding:"4px 0",background:GRP[i].bg,borderRadius:6,border:"1px solid "+GRP[i].c+"33"}}><div style={{fontSize:14,fontWeight:800,color:GRP[i].c}}>{n}</div><div style={{fontSize:8,color:C.tM}}>{GRP[i].l}</div></div>)}</div></div>
-        <div><div style={{fontSize:10,color:C.tD,fontWeight:600,marginBottom:6}}>CIMICIATO OCCULTO</div><div style={{display:"flex",gap:4}}>{coGrp.map((n,i)=><div key={i} style={{flex:1,textAlign:"center",padding:"4px 0",background:GRP[i].bg,borderRadius:6,border:"1px solid "+GRP[i].c+"33"}}><div style={{fontSize:14,fontWeight:800,color:GRP[i].c}}>{n}</div><div style={{fontSize:8,color:C.tM}}>{GRP[i].l}</div></div>)}</div></div>
+        <div><div style={{fontSize:11,color:"#6b5e4f",fontWeight:600,marginBottom:6}}>MARCIO OCCULTO</div><div style={{display:"flex",gap:4}}>{moGrp.map((n,i)=><div key={i} onClick={()=>n>0&&goPage("giacenze",{type:"moGrp_tipo",val:i+"|"+tipo})} style={{flex:1,textAlign:"center",padding:"6px 0",background:GRP[i].bg,borderRadius:6,border:"1px solid "+GRP[i].c+"33",cursor:n>0?"pointer":"default"}}><div style={{fontSize:16,fontWeight:800,color:GRP[i].c}}>{n}</div><div style={{fontSize:9,color:"#6b5e4f"}}>{GRP[i].l}</div></div>)}</div></div>
+        <div><div style={{fontSize:11,color:"#6b5e4f",fontWeight:600,marginBottom:6}}>CIMICIATO OCCULTO</div><div style={{display:"flex",gap:4}}>{coGrp.map((n,i)=><div key={i} onClick={()=>n>0&&goPage("giacenze",{type:"coGrp_tipo",val:i+"|"+tipo})} style={{flex:1,textAlign:"center",padding:"6px 0",background:GRP[i].bg,borderRadius:6,border:"1px solid "+GRP[i].c+"33",cursor:n>0?"pointer":"default"}}><div style={{fontSize:16,fontWeight:800,color:GRP[i].c}}>{n}</div><div style={{fontSize:9,color:"#6b5e4f"}}>{GRP[i].l}</div></div>)}</div></div>
       </div></div>}
       {/* Rottame/Scarti compact */}
       <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-        {rtTot>0&&<div style={{background:C.oD,borderRadius:8,padding:"8px 14px",flex:"1 1 100px"}} onClick={()=>goPage("giacenze",{type:"lav_tipo",val:"ROTTAME|"+tipo})}><span style={{fontSize:10,color:C.o,fontWeight:700}}>ROTTAME</span><div style={{fontSize:16,fontWeight:800,color:C.o,fontFamily:"'DM Mono',monospace"}}>{rtTot.toLocaleString()} kg</div><div style={{fontSize:10,color:C.tM}}>{rt.length} lotti</div></div>}
-        {scTot>0&&<div style={{background:C.rD,borderRadius:8,padding:"8px 14px",flex:"1 1 100px"}} onClick={()=>goPage("giacenze",{type:"lav_tipo",val:"SCARTI|"+tipo})}><span style={{fontSize:10,color:C.r,fontWeight:700}}>SCARTI</span><div style={{fontSize:16,fontWeight:800,color:C.r,fontFamily:"'DM Mono',monospace"}}>{scTot.toLocaleString()} kg</div><div style={{fontSize:10,color:C.tM}}>{sc.length} lotti</div></div>}
+        {rtTot>0&&<div style={{background:C.oD,borderRadius:8,padding:"8px 14px",flex:"1 1 100px",cursor:"pointer"}} onClick={()=>goPage("giacenze",{type:"lav_tipo",val:"ROTTAME|"+tipo})}><span style={{fontSize:10,color:C.o,fontWeight:700}}>ROTTAME</span><div style={{fontSize:18,fontWeight:800,color:C.o,fontFamily:"'DM Mono',monospace"}}>{rtTot.toLocaleString()} kg</div><div style={{fontSize:11,color:C.tM}}>{rt.length} lotti</div></div>}
+        {scTot>0&&<div style={{background:C.rD,borderRadius:8,padding:"8px 14px",flex:"1 1 100px",cursor:"pointer"}} onClick={()=>goPage("giacenze",{type:"lav_tipo",val:"SCARTI|"+tipo})}><span style={{fontSize:10,color:C.r,fontWeight:700}}>SCARTI</span><div style={{fontSize:18,fontWeight:800,color:C.r,fontFamily:"'DM Mono',monospace"}}>{scTot.toLocaleString()} kg</div><div style={{fontSize:11,color:C.tM}}>{sc.length} lotti</div></div>}
       </div>
     </GCard>;
   };
@@ -167,29 +167,56 @@ function MovimentiPage({lotti,contratti,reload}){
 // === GIACENZE (with subtotal rows per tipo, MO/CO based quality) ===
 function GiacenzePage({lotti,contratti,reload,isAdm,dashFilter,clearFilter}){
   const df=dashFilter||{};
-  const[fTipo,setFTipo]=useState(df.type==="tipo"?df.val:"");
-  const[fLav,setFLav]=useState(df.type==="lav"?df.val:df.type==="sg_cal"||df.type==="sg_qual"||df.type==="sg_cal_tipo"?"SGUSCIATE":df.type==="lav_tipo"?df.val.split("|")[0]:"");
+  const[fTipo,setFTipo]=useState(df.type==="tipo"?df.val:df.type==="sg_cal_tipo"||df.type==="lav_tipo"||df.type==="moGrp_tipo"||df.type==="coGrp_tipo"?df.val.split("|")[1]:"");
+  const[fLav,setFLav]=useState(df.type==="lav"?df.val:df.type==="sg_cal"||df.type==="sg_qual"||df.type==="sg_cal_tipo"?"SGUSCIATE":df.type==="lav_tipo"?df.val.split("|")[0]:df.type==="moGrp_tipo"||df.type==="coGrp_tipo"?"SGUSCIATE":"");
   const[fCal,setFCal]=useState(df.type==="calibro"||df.type==="sg_cal"?df.val:df.type==="sg_cal_tipo"?df.val.split("|")[0]:"");
   const[fMag,setFMag]=useState(df.type==="magazzino"?df.val:"");
   const[fSt,setFSt]=useState(df.type==="stato"?(df.val==="assegnato"?"A":"L"):"");
-  // Extra: tipo from compound filters
-  const initTipo2=df.type==="sg_cal_tipo"?df.val.split("|")[1]:df.type==="lav_tipo"?df.val.split("|")[1]:"";
+  const initTipo2="";
   const[fTipo2]=useState(initTipo2);
-  const[sortQ,setSortQ]=useState("");const[msg,setMsg]=useState(null);
+  const[sortQ,setSortQ]=useState("");
+  const[fMoGrp,setFMoGrp]=useState(df.type==="moGrp_tipo"?df.val.split("|")[0]:"");
+  const[fCoGrp,setFCoGrp]=useState(df.type==="coGrp_tipo"?df.val.split("|")[0]:"");
+  const[msg,setMsg]=useState(null);
   const[selIds,setSelIds]=useState([]);const[aMode,setAMode]=useState(false);const[aC,setAC]=useState("");const[aA,setAA]=useState("");
   const flash=(t,x)=>{setMsg({t,x});setTimeout(()=>setMsg(null),4000)};
   const enr=useMemo(()=>lotti.filter(l=>dsp(l)>0).map(l=>({...l,d:dsp(l),stato:(l.contratto||l.acquirente)?"A":"L"})),[lotti]);
-  const fl=enr.filter(l=>{const ft=fTipo||fTipo2;if(ft&&l.desc1!==ft)return false;if(fLav&&l.desc2!==fLav)return false;if(fCal&&l.desc3!==fCal)return false;if(fMag&&l.magazzino!==fMag)return false;if(fSt&&l.stato!==fSt)return false;return true});
+  const fl=enr.filter(l=>{const ft=fTipo||fTipo2;if(ft&&l.desc1!==ft)return false;if(fLav&&l.desc2!==fLav)return false;if(fCal&&l.desc3!==fCal)return false;if(fMag&&l.magazzino!==fMag)return false;if(fSt&&l.stato!==fSt)return false;if(fMoGrp!==""){const g=grp(moP(l));if(g!==Number(fMoGrp))return false}if(fCoGrp!==""){const g=grp(coP(l));if(g!==Number(fCoGrp))return false}return true});
   const sorted=useMemo(()=>[...fl].sort(sortQ?(a,b)=>{const va=sortQ==="mo"||sortQ==="co"||sortQ==="mv"||sortQ==="cv"||sortQ==="ce"||sortQ==="rt"?((a[sortQ]||0)*100):0;const vb=sortQ==="mo"||sortQ==="co"||sortQ==="mv"||sortQ==="cv"||sortQ==="ce"||sortQ==="rt"?((b[sortQ]||0)*100):0;return vb-va}:stdSort),[fl,sortQ]);
 
   // Build data with subtotal rows
-  const dataWithSubs=useMemo(()=>{if(sortQ)return sorted; // no subtotals when sorting by quality
-    const result=[];let lastTipo="";
-    sorted.forEach(l=>{
-      if(l.desc1!==lastTipo&&lastTipo){const sub=calcSub(sorted.filter(x=>x.desc1===lastTipo));result.push({_sub:true,_tipo:lastTipo,...sub})}
-      lastTipo=l.desc1;result.push(l);
+  const dataWithSubs=useMemo(()=>{if(sortQ)return sorted;
+    const result=[];let lastKey="";
+    sorted.forEach((l,i)=>{
+      const next=sorted[i+1];
+      result.push(l);
+      // Sub per calibro (when next row has different calibro within same tipo+lav)
+      if(next&&l.desc1===next.desc1&&l.desc2===next.desc2&&l.desc3!==next.desc3){
+        const grpItems=sorted.filter(x=>x.desc1===l.desc1&&x.desc2===l.desc2&&x.desc3===l.desc3);
+        const sub=calcSub(grpItems);result.push({_sub:true,_level:"cal",_label:l.desc3,...sub});
+      }
+      // Sub per lavorazione (when next row has different lav within same tipo)
+      if(next&&l.desc1===next.desc1&&l.desc2!==next.desc2){
+        const lavItems=sorted.filter(x=>x.desc1===l.desc1&&x.desc2===l.desc2);
+        const sub=calcSub(lavItems);result.push({_sub:true,_level:"lav",_label:l.desc2,...sub});result.push({_blank:true});
+      }
+      // Sub per tipo (when next row has different tipo, or last row)
+      if(!next||l.desc1!==next.desc1){
+        // Last calibro sub
+        if(!next||l.desc2!==(sorted[i-1]||{}).desc2||!next){
+          const grpItems=sorted.filter(x=>x.desc1===l.desc1&&x.desc2===l.desc2&&x.desc3===l.desc3);
+          if(!result.find(r=>r._sub&&r._level==="cal"&&r._label===l.desc3&&sorted.filter(x=>x.desc1===l.desc1&&x.desc2===l.desc2).length>grpItems.length)){
+            const sub=calcSub(grpItems);result.push({_sub:true,_level:"cal",_label:l.desc3,...sub});
+          }
+        }
+        // Lav sub if not already added
+        const lavItems=sorted.filter(x=>x.desc1===l.desc1&&x.desc2===l.desc2);
+        if(lavItems.length>0&&!result[result.length-1]?._blank){const sub=calcSub(lavItems);result.push({_sub:true,_level:"lav",_label:l.desc2,...sub});result.push({_blank:true})}
+        // Tipo total
+        const tipoItems=sorted.filter(x=>x.desc1===l.desc1);
+        const sub=calcSub(tipoItems);result.push({_sub:true,_level:"tipo",_tipo:l.desc1,...sub});result.push({_blank:true});
+      }
     });
-    if(lastTipo){const sub=calcSub(sorted.filter(x=>x.desc1===lastTipo));result.push({_sub:true,_tipo:lastTipo,...sub})}
     return result;
   },[sorted,sortQ]);
 
@@ -207,12 +234,12 @@ function GiacenzePage({lotti,contratti,reload,isAdm,dashFilter,clearFilter}){
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div><h1 style={{fontSize:28,fontWeight:900,color:C.t,margin:0,fontFamily:"'Playfair Display',serif"}}>Giacenze</h1><p style={{color:C.tM,margin:"4px 0 0",fontSize:13}}>{sorted.length} lotti — {totKg.toLocaleString()} kg</p></div><XBtn data={sorted} cols={XC.giacenze} name="giacenze"/></div><Msg msg={msg}/>
     <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}} data-no-print><TypeChip label="Tutti" active={!fTipo} color={C.acc} onClick={()=>setFTipo("")}/>{TIPI.map(t=><TypeChip key={t} label={t} active={fTipo===t} color={TC[t]||C.acc} onClick={()=>setFTipo(fTipo===t?"":t)}/>)}<span style={{width:1,background:C.bd,margin:"0 4px"}}/><TypeChip label="Assegnati" active={fSt==="A"} color={C.b} onClick={()=>setFSt(fSt==="A"?"":"A")}/><TypeChip label="Liberi" active={fSt==="L"} color={C.g} onClick={()=>setFSt(fSt==="L"?"":"L")}/></div>
     <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}} data-no-print>{LAVS.map(l=><TypeChip key={l} label={l} active={fLav===l} color={l==="SGUSCIATE"?C.g:l==="ROTTAME"?C.o:C.r} onClick={()=>setFLav(fLav===l?"":l)}/>)}</div>
-    <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"flex-end"}} data-no-print><Sel label="Calibro" value={fCal} onChange={setFCal} options={[{value:"",label:"Tutti"},...CALS.map(v=>({value:v,label:v}))]}/><Sel label="Magazzino" value={fMag} onChange={setFMag} options={[{value:"",label:"Tutti"},...MAGS.map(v=>({value:v,label:v}))]}/><Sel label="Ordina per" value={sortQ} onChange={setSortQ} options={[{value:"",label:"Standard"},{value:"mo",label:"M.O. (decrescente)"},{value:"co",label:"C.O. (decrescente)"},{value:"mv",label:"M.V."},{value:"cv",label:"C.V."},{value:"ce",label:"C.E."},{value:"rt",label:"RT"}]}/>{(fTipo||fLav||fCal||fMag||fSt||sortQ)&&<Btn small onClick={()=>{setFTipo("");setFLav("");setFCal("");setFMag("");setFSt("");setSortQ("");if(clearFilter)clearFilter()}}>Pulisci</Btn>}</div>
-    {selIds.length>0&&<div style={{padding:"10px 16px",background:C.accL,borderRadius:8,marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}} data-no-print><span style={{fontWeight:700,color:C.acc}}>{selIds.length} selezionati — {sorted.filter(l=>selIds.includes(l.id)).reduce((s,l)=>s+l.d,0).toLocaleString()} kg</span><div style={{display:"flex",gap:8}}><Btn small danger onClick={doBulkUscita}>Uscita selezionati</Btn><Btn small primary onClick={()=>setAMode(true)}>Assegna selezionati</Btn><Btn small onClick={()=>setSelIds([])}>Deseleziona</Btn></div></div>}
+    <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"flex-end"}} data-no-print><Sel label="Calibro" value={fCal} onChange={setFCal} options={[{value:"",label:"Tutti"},...CALS.map(v=>({value:v,label:v}))]}/><Sel label="Magazzino" value={fMag} onChange={setFMag} options={[{value:"",label:"Tutti"},...MAGS.map(v=>({value:v,label:v}))]}/><Sel label="M.O. gruppo" value={fMoGrp} onChange={setFMoGrp} options={[{value:"",label:"Tutti"},...GRP.map((g,i)=>({value:String(i),label:g.l}))]}/><Sel label="C.O. gruppo" value={fCoGrp} onChange={setFCoGrp} options={[{value:"",label:"Tutti"},...GRP.map((g,i)=>({value:String(i),label:g.l}))]}/><Sel label="Ordina per" value={sortQ} onChange={setSortQ} options={[{value:"",label:"Standard"},{value:"mo",label:"M.O. (decrescente)"},{value:"co",label:"C.O. (decrescente)"},{value:"mv",label:"M.V."},{value:"cv",label:"C.V."},{value:"ce",label:"C.E."},{value:"rt",label:"RT"}]}/>{(fTipo||fLav||fCal||fMag||fSt||sortQ||fMoGrp||fCoGrp)&&<Btn small onClick={()=>{setFTipo("");setFLav("");setFCal("");setFMag("");setFSt("");setSortQ("");setFMoGrp("");setFCoGrp("");if(clearFilter)clearFilter()}}>Pulisci</Btn>}</div>
+    {selIds.length>0&&(()=>{const selLots=sorted.filter(l=>selIds.includes(l.id));const sub=calcSub(selLots);return <div style={{position:"sticky",top:0,zIndex:3,padding:"10px 16px",background:C.accL,borderRadius:8,marginBottom:14,border:"2px solid "+C.acc,boxShadow:"0 4px 16px rgba(0,0,0,0.1)"}} data-no-print><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}><span style={{fontWeight:700,color:C.acc}}>{selIds.length} selezionati — {sub.t.toLocaleString()} kg</span><div style={{display:"flex",gap:8}}><Btn small danger onClick={doBulkUscita}>Uscita selezionati</Btn><Btn small primary onClick={()=>setAMode(true)}>Assegna selezionati</Btn><Btn small onClick={()=>setSelIds([])}>Deseleziona</Btn></div></div><div style={{display:"flex",gap:12,marginTop:8,fontSize:11,flexWrap:"wrap"}}><span>M.V. <b>{sub.mv}%</b></span><span>M.O. <b style={{color:Number(sub.mo)>4?"#c0392b":Number(sub.mo)>2?"#d68910":"#2d8a4e"}}>{sub.mo}%</b></span><span>C.V. <b>{sub.cv}%</b></span><span>C.O. <b style={{color:Number(sub.co)>4?"#c0392b":Number(sub.co)>2?"#d68910":"#2d8a4e"}}>{sub.co}%</b></span><span>C.E. <b>{sub.ce}%</b></span><span>RT <b>{sub.rt}%</b></span></div></div>})()}
     {aMode&&<GCard style={{marginBottom:14}} data-no-print><h3 style={{fontSize:14,color:C.acc,margin:"0 0 10px",fontWeight:700}}>Assegna {selIds.length} lotti</h3><div style={{display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}><Sel label="Contratto" value={aC} onChange={v=>{setAC(v);if(v){const c=contratti.find(x=>x.id===v);if(c)setAA(c.cliente)}}} options={[{value:"",label:"- Nessuno -"},...oc.map(c=>({value:c.id,label:c.id+" - "+c.cliente+" "+(c.qta_tot-c.qta_evasa).toLocaleString()+" kg"}))]} style={{flex:"1 1 300px"}}/><Inp label="Oppure acquirente" value={aA} onChange={setAA} disabled={!!aC}/><Btn primary small onClick={doBulkAssign}>Assegna</Btn><Btn small onClick={()=>{setAMode(false);setAC("");setAA("")}}>Annulla</Btn></div></GCard>}
     <Tbl cols={[
       {label:<input type="checkbox" checked={allSel} onChange={toggleAll} style={{accentColor:C.acc,cursor:"pointer"}}/>,render:r=><input type="checkbox" checked={selIds.includes(r.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleSel(r.id)} style={{accentColor:C.acc,cursor:"pointer"}}/>,subRender:()=>""},
-      {label:"Tipo",render:r=><Badge color={TC[r.desc1]||C.acc} bg={(TC[r.desc1]||C.acc)+"18"}>{r.desc1}</Badge>,subRender:r=>"TOTALE "+r._tipo},
+      {label:"Tipo",render:r=><Badge color={TC[r.desc1]||C.acc} bg={(TC[r.desc1]||C.acc)+"18"}>{r.desc1}</Badge>,subRender:r=>r._level==="tipo"?"TOTALE "+r._tipo:r._level==="lav"?"Tot. "+r._label:"Tot. "+r._label},
       {key:"desc2",label:"Lav.",subRender:()=>""},{key:"desc3",label:"Cal.",subRender:()=>""},{key:"lotto",label:"Lotto",subRender:r=>r.n+" lotti"},{key:"imballo",label:"Imballo",subRender:()=>""},
       {label:"Disp.",render:r=><span style={{fontFamily:"'DM Mono',monospace",fontWeight:700,color:C.acc}}>{r.d.toLocaleString()} kg</span>,subRender:r=>r.t.toLocaleString()+" kg"},
       {key:"magazzino",label:"Mag.",subRender:()=>""},
