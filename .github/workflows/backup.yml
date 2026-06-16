@@ -1,0 +1,29 @@
+name: Backup notturno DB
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # ogni notte alle 02:00 UTC (diverso dal keep-alive delle 06:00)
+  workflow_dispatch:        # permette anche l'avvio manuale dal tab Actions
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Esporta tabelle in CSV
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node backup.mjs
+      - name: Commit del backup
+        run: |
+          git config user.name "backup-bot"
+          git config user.email "backup@assofrutti.local"
+          git add backups/
+          git commit -m "Backup automatico $(date +%F)" || echo "Nessuna modifica da committare"
+          git push
