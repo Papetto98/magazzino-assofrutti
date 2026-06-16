@@ -25,5 +25,8 @@ jobs:
           git config user.name "backup-bot"
           git config user.email "backup@assofrutti.local"
           git add backups/
-          git commit -m "Backup automatico $(date +%F)" || echo "Nessuna modifica da committare"
-          git push
+          if git commit -m "Backup automatico $(date +%F)"; then
+            git push
+          else
+            echo "Nessuna modifica da committare: salto il push"
+          fi
