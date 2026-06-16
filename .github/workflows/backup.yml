@@ -26,6 +26,7 @@ jobs:
           git config user.email "backup@assofrutti.local"
           git add backups/
           if git commit -m "Backup automatico $(date +%F)"; then
+            git pull --rebase origin main
             git push
           else
             echo "Nessuna modifica da committare: salto il push"
