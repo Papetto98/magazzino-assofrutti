@@ -1,6 +1,12 @@
 // importa-situazione.mjs
-// Uso: node importa-situazione.mjs SITUAZIONE_AL_01_APRILE_2026.xlsx
-// Poi: node importa-situazione.mjs SITUAZIONE_AL_01_APRILE_2026.xlsx --conferma
+// Uso (dry run):  node importa-situazione.mjs 2025.xlsx
+// Importa:        node importa-situazione.mjs 2025.xlsx --conferma
+//
+// ANNATA DI RACCOLTA (anno_raccolta):
+//   - viene ricavata dal NOME DEL FILE (rinomina i file come "2025.xlsx", "2024.xlsx").
+//   - se il nome contiene piu di un anno (es. una data nel nome) lo script si ferma:
+//     in quel caso passala a mano con  --annata=2025
+//   - override sempre disponibile: node importa-situazione.mjs file.xlsx --annata=2024
 
 import XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
@@ -47,12 +53,34 @@ function detectMagazzino(row) {
   return 'Vignanello';
 }
 
-function parseSettimana(sett) {
-  if (!sett) return { sett_prod: 0, anno: 2025 };
+function parseSettimana(sett, annoDefault) {
+  const fb = annoDefault || 2025;
+  if (!sett) return { sett_prod: 0, anno: fb };
   const parts = String(sett).trim().split('/');
   return parts.length === 2
-    ? { sett_prod: parseInt(parts[0]) || 0, anno: parseInt(parts[1]) || 2025 }
-    : { sett_prod: parseInt(sett) || 0, anno: 2025 };
+    ? { sett_prod: parseInt(parts[0]) || 0, anno: parseInt(parts[1]) || fb }
+    : { sett_prod: parseInt(sett) || 0, anno: fb };
+}
+
+// Ricava l'annata di raccolta dal nome file, oppure da --annata=YYYY.
+function detectAnnata(filePath, argv) {
+  const ovv = argv.find(a => a.startsWith('--annata='));
+  if (ovv) {
+    const y = parseInt(ovv.split('=')[1], 10);
+    if (!y || y < 2000 || y > 2100) { console.error('--annata non valido: usa --annata=2025'); process.exit(1); }
+    return y;
+  }
+  const base = filePath.split(/[\\/]/).pop();
+  const found = [...new Set((base.match(/20\d\d/g) || []).map(Number))];
+  if (found.length === 1) return found[0];
+  if (found.length === 0) {
+    console.error('\nIMPOSSIBILE determinare l\'annata di raccolta dal nome "' + base + '".');
+    console.error('Rinomina il file (es. 2025.xlsx) oppure passa --annata=2025');
+    process.exit(1);
+  }
+  console.error('\nNome file "' + base + '" contiene piu anni (' + found.join(', ') + '): ambiguo.');
+  console.error('Specifica l\'annata a mano con --annata=' + found[0]);
+  process.exit(1);
 }
 
 async function main() {
@@ -60,6 +88,8 @@ async function main() {
   if (!filePath) { console.error('Uso: node importa-situazione.mjs <file.xlsx>'); process.exit(1); }
 
   console.log('\nLettura file: ' + filePath);
+  const annoRaccolta = detectAnnata(filePath, process.argv);
+  console.log('ANNATA DI RACCOLTA (anno_raccolta): ' + annoRaccolta + '  <-- verifica che sia corretta!');
   const wb = XLSX.readFile(filePath);
   const lotti = [];
 
@@ -85,7 +115,7 @@ async function main() {
       if (qta < 1) continue;
       if (desc.includes('TOTALE') || desc.includes('CONTRATTI PER') || desc === 'SETTIMANA DI PRODUZ.' || desc === 'DATA') continue;
 
-      const sp = parseSettimana(row[0]);
+      const sp = parseSettimana(row[0], annoRaccolta);
       const mv = Number(row[15]) || 0;
       const mo = Number(row[16]) || 0;
       const co = Number(row[17]) || 0;
@@ -96,6 +126,7 @@ async function main() {
       lotti.push({
         sett_prod: sp.sett_prod,
         anno: sp.anno,
+        anno_raccolta: annoRaccolta,
         imballo: String(row[10] || row[1] || 'BIG BAG').trim(),
         lotto: String(row[2] || row[1] || '').trim(),
         desc1: tipo,
@@ -122,7 +153,7 @@ async function main() {
 
   console.log('\nPrimi 5 lotti:');
   lotti.slice(0, 5).forEach(function(l, i) {
-    console.log('  ' + (i+1) + '. ' + l.desc1 + ' | ' + l.desc2 + ' | ' + l.desc3 + ' | ' + l.lotto + ' | ' + l.imballo + ' | ' + l.q_iniz + 'kg | ' + l.magazzino + ' | RT=' + (l.rt*100).toFixed(1) + '%');
+    console.log('  ' + (i+1) + '. ' + l.desc1 + ' | ' + l.desc2 + ' | ' + l.desc3 + ' | ' + l.lotto + ' | ' + l.imballo + ' | ' + l.q_iniz + 'kg | racc.' + l.anno_raccolta + ' | ' + l.magazzino + ' | RT=' + (l.rt*100).toFixed(1) + '%');
   });
 
   if (!process.argv.includes('--conferma')) {
