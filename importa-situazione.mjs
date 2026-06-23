@@ -20,7 +20,7 @@ const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SU
 // Foglio "Merce ASSOBIO": e merce di terzi (conto lavoro). Viene importata ma
 // marcata conto_lavoro=true, cosi resta separata dai totali di proprieta.
 // Metti null per saltarla del tutto.
-const ASSOBIO_TIPO = 'BIOLOGICHE';
+const ASSOBIO_TIPO = 'CONVENZIONALI';
 // Righe con "GIFFONI" nella descrizione: false = restano col tipo del foglio (CONVENZIONALI);
 // true = diventano tipo 'GIFFONI'.
 const GIFFONI_DA_DESC = true;
