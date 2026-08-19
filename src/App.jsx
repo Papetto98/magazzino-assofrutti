@@ -147,24 +147,43 @@ function DashboardPage({lotti,contratti,movimenti,goPage,allLotti}){
     return{T,ls,camps,occD,clKg,igKg,rs};
   };
   const rowsFor=(items)=>{
-    const natRows=[];TIPI.forEach(tipo=>{const it=items.filter(l=>l.desc1===tipo&&NAT_LAV.includes(l.desc2));NAT_LAV.forEach(lav=>{const li=it.filter(l=>l.desc2===lav);if(li.length===0)return;const calM={};li.forEach(l=>{const k=l.desc3;if(!calM[k])calM[k]={kg:0,n:0,mo:0,co:0};calM[k].kg+=l.d;calM[k].n++;calM[k].mo+=(l.mo||0)*100*l.d;calM[k].co+=(l.co||0)*100*l.d});Object.entries(calM).sort((a,b)=>(CAL_ORD[a[0]]??99)-(CAL_ORD[b[0]]??99)).forEach(([cal,d])=>{natRows.push({tipo,lav,cal,kg:d.kg,n:d.n,mo:d.kg>0?d.mo/d.kg:0,co:d.kg>0?d.co/d.kg:0})})})});
-    const semiM={};items.filter(l=>TRASF.includes(l.desc2)).forEach(l=>{const k=l.desc2+"|"+l.desc1;semiM[k]=(semiM[k]||0)+l.d});
-    const semiRows=Object.entries(semiM).sort((a,b)=>(LAV_ORD[a[0].split("|")[0]]??9)-(LAV_ORD[b[0].split("|")[0]]??9)).map(([k,kg])=>({prod:k.split("|")[0],tipo:k.split("|")[1],kg}));
+    const natRows=[];TIPI.forEach(tipo=>{const it=items.filter(l=>l.desc1===tipo&&NAT_LAV.includes(l.desc2));NAT_LAV.forEach(lav=>{const li=it.filter(l=>l.desc2===lav);if(li.length===0)return;const calM={};li.forEach(l=>{const k=l.desc3;if(!calM[k])calM[k]={kg:0,n:0,mo:0,co:0,ig:0};calM[k].kg+=l.d;calM[k].n++;calM[k].mo+=(l.mo||0)*100*l.d;calM[k].co+=(l.co||0)*100*l.d;if(l.intragruppo)calM[k].ig+=l.d});Object.entries(calM).sort((a,b)=>(CAL_ORD[a[0]]??99)-(CAL_ORD[b[0]]??99)).forEach(([cal,d])=>{natRows.push({tipo,lav,cal,kg:d.kg,n:d.n,ig:d.ig,mo:d.kg>0?d.mo/d.kg:0,co:d.kg>0?d.co/d.kg:0})})})});
+    const semiM={};items.filter(l=>TRASF.includes(l.desc2)).forEach(l=>{const k=l.desc2+"|"+l.desc1;if(!semiM[k])semiM[k]={kg:0,ig:0};semiM[k].kg+=l.d;if(l.intragruppo)semiM[k].ig+=l.d});
+    const semiRows=Object.entries(semiM).sort((a,b)=>(LAV_ORD[a[0].split("|")[0]]??9)-(LAV_ORD[b[0].split("|")[0]]??9)).map(([k,d])=>({prod:k.split("|")[0],tipo:k.split("|")[1],kg:d.kg,ig:d.ig}));
     const natKg=items.filter(l=>NAT_LAV.includes(l.desc2)).reduce((s,l)=>s+l.d,0);
     const semiKg=items.filter(l=>TRASF.includes(l.desc2)).reduce((s,l)=>s+l.d,0);
-    return{natRows,semiRows,natKg,semiKg};
+    const igKgC=items.filter(l=>l.intragruppo).reduce((s,l)=>s+l.d,0);
+    const clKgC=items.filter(l=>l.conto_lavoro).reduce((s,l)=>s+l.d,0);
+    const proK=items.filter(l=>!l.intragruppo&&!l.conto_lavoro).reduce((s,l)=>s+l.d,0);
+    return{natRows,semiRows,natKg,semiKg,igKgC,clKgC,proK};
   };
   const genExcel=async()=>{if(rBusy)return;setRBusy(true);try{
     const{T,ls,camps,occD,clKg,igKg,rs}=await repBase();
+    const isFis=rVista!=="own";
     const perC=camps.map(c=>({c,...rowsFor(ls.filter(l=>String(campOf(l))===String(c)))}));
-    const gNat=perC.reduce((s,p)=>s+p.natKg,0);const gSemi=perC.reduce((s,p)=>s+p.semiKg,0);
+    const gPro=perC.reduce((s,p)=>s+p.proK,0),gIG=perC.reduce((s,p)=>s+p.igKgC,0),gCL=perC.reduce((s,p)=>s+p.clKgC,0);
+    const gNat=perC.reduce((s,p)=>s+p.natKg,0),gSemi=perC.reduce((s,p)=>s+p.semiKg,0),gFis=gNat+gSemi;
+    const showIG=isFis&&gIG>0,showCL=isFis&&gCL>0;
     const magRows=MAGS.filter(m=>!rMag||m===rMag).map(m=>({mag:m,kg:occD[m]||0,cap:CAP[m],perc:CAP[m]?((occD[m]||0)/CAP[m]*100):null})).filter(r=>r.kg>0||CAP[r.mag]);
     const wb=XLSX.utils.book_new();
-    const riep=[["RESOCONTO DISPONIBILITA — ASSOFRUTTI"],["Situazione al",fmtD(T)],["Generato il",today],["Campagna",rCamp==="all"?"Tutte":String(rCamp)],["Magazzino",rMag||"Tutti"],["Tipologia",rTipo||"Tutte"],["Vista",vLbl],[],["CAMPAGNA","Naturali kg","Semilav. kg","Totale kg"],...perC.map(p=>[String(p.c),Math.round(p.natKg),Math.round(p.semiKg),Math.round(p.natKg+p.semiKg)]),["TOTALE",Math.round(gNat),Math.round(gSemi),Math.round(gNat+gSemi)],[],["Conto lavoro / terzi (kg)",Math.round(clKg)],["Venduto intragruppo (kg)",Math.round(igKg)],[],["MAGAZZINO (fisico alla data)","Giacenza kg","Capienza kg","Riempimento %"],...magRows.map(r=>[r.mag,Math.round(r.kg),r.cap??"n/d",r.perc!=null?Number(r.perc.toFixed(1)):"n/d"])];
+    const meta=[["RESOCONTO DISPONIBILITA — ASSOFRUTTI"],["Situazione al",fmtD(T)],["Generato il",today],["Campagna",rCamp==="all"?"Tutte":String(rCamp)],["Magazzino",rMag||"Tutti"],["Tipologia",rTipo||"Tutte"],["Vista",vLbl],[]];
+    let riep;
+    if(!isFis){
+      riep=[...meta,["CAMPAGNA","Naturali kg","Semilav. kg","Totale proprieta kg"],...perC.map(p=>[String(p.c),Math.round(p.natKg),Math.round(p.semiKg),Math.round(p.natKg+p.semiKg)]),["TOTALE",Math.round(gNat),Math.round(gSemi),Math.round(gFis)]];
+    }else{
+      const head=["CAMPAGNA","Proprieta kg"];if(showIG)head.push("+ Intragruppo kg");if(showCL)head.push("+ Conto lavoro kg");head.push("= Fisico kg");
+      const line=p=>{const r=[String(p.c),Math.round(p.proK)];if(showIG)r.push(Math.round(p.igKgC));if(showCL)r.push(Math.round(p.clKgC));r.push(Math.round(p.natKg+p.semiKg));return r};
+      const tot=["TOTALE",Math.round(gPro)];if(showIG)tot.push(Math.round(gIG));if(showCL)tot.push(Math.round(gCL));tot.push(Math.round(gFis));
+      riep=[...meta,head,...perC.map(line),tot];
+    }
+    riep.push([],["MAGAZZINO (fisico alla data)","Giacenza kg","Capienza kg","Riempimento %"],...magRows.map(r=>[r.mag,Math.round(r.kg),r.cap??"n/d",r.perc!=null?Number(r.perc.toFixed(1)):"n/d"]));
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(riep),"Riepilogo");
-    const natAoa=[["Campagna","Tipo","Lavorazione","Calibro","Kg","Lotti","M.O.%","C.O.%"]];perC.forEach(p=>{p.natRows.forEach(r=>natAoa.push([String(p.c),r.tipo,r.lav,r.cal,Math.round(r.kg),r.n,Number(r.mo.toFixed(2)),Number(r.co.toFixed(2))]));if(p.natRows.length)natAoa.push(["TOT "+p.c,"","","",Math.round(p.natKg),"","",""])});
+    const natHead=["Campagna","Tipo","Lavorazione","Calibro","Kg"];if(isFis)natHead.push("di cui intragr. kg");natHead.push("Lotti","M.O.%","C.O.%");
+    const natAoa=[natHead];perC.forEach(p=>{p.natRows.forEach(r=>{const row=[String(p.c),r.tipo,r.lav,r.cal,Math.round(r.kg)];if(isFis)row.push(r.ig>0?Math.round(r.ig):"");row.push(r.n,Number(r.mo.toFixed(2)),Number(r.co.toFixed(2)));natAoa.push(row)});if(p.natRows.length){const tr=["TOT "+p.c,"","","",Math.round(p.natKg)];if(isFis)tr.push(Math.round(p.igKgC)||"");tr.push("","","");natAoa.push(tr)}});
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(natAoa),"Naturali");
-    const semiAoa=[["Campagna","Prodotto","Tipo","Kg"]];perC.forEach(p=>{p.semiRows.forEach(r=>semiAoa.push([String(p.c),r.prod,r.tipo,Math.round(r.kg)]));if(p.semiRows.length)semiAoa.push(["TOT "+p.c,"","",Math.round(p.semiKg)])});
+    const semiHasIG=isFis&&perC.some(p=>p.semiRows.some(r=>r.ig>0));
+    const semiHead=["Campagna","Prodotto","Tipo","Kg"];if(semiHasIG)semiHead.push("di cui intragr. kg");
+    const semiAoa=[semiHead];perC.forEach(p=>{p.semiRows.forEach(r=>{const row=[String(p.c),r.prod,r.tipo,Math.round(r.kg)];if(semiHasIG)row.push(r.ig>0?Math.round(r.ig):"");semiAoa.push(row)});if(p.semiRows.length){const tr=["TOT "+p.c,"","",Math.round(p.semiKg)];if(semiHasIG)tr.push("");semiAoa.push(tr)}});
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(semiAoa),"Semilavorati");
     const reseAoa=[["Prodotto","N. trasf.","Input kg","Output kg","Calo kg","Resa %"],...rs.list.map(r=>[r.prod,r.n,Math.round(r.inKg),Math.round(r.outKg),Math.round(r.calo),Number(r.resa.toFixed(1))]),["TOTALE",rs.gn,Math.round(rs.gi),Math.round(rs.go),Math.round(rs.gcalo),Number(rs.gresa.toFixed(1))]];
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(reseAoa),"Rese trasformazione");
@@ -174,20 +193,35 @@ function DashboardPage({lotti,contratti,movimenti,goPage,allLotti}){
   }finally{setRBusy(false)}};
   const genPDF=async()=>{if(rBusy)return;setRBusy(true);try{
     const{T,ls,camps,occD,clKg,igKg,rs}=await repBase();
+    const isFis=rVista!=="own";
     const perC=camps.map(c=>({c,...rowsFor(ls.filter(l=>String(campOf(l))===String(c)))}));
-    const gNat=perC.reduce((s,p)=>s+p.natKg,0);const gSemi=perC.reduce((s,p)=>s+p.semiKg,0);
+    const gPro=perC.reduce((s,p)=>s+p.proK,0),gIG=perC.reduce((s,p)=>s+p.igKgC,0),gCL=perC.reduce((s,p)=>s+p.clKgC,0);
+    const gNat=perC.reduce((s,p)=>s+p.natKg,0),gSemi=perC.reduce((s,p)=>s+p.semiKg,0),gFis=gNat+gSemi;
+    const showIG=isFis&&gIG>0,showCL=isFis&&gCL>0;
+    const IT=n=>Math.round(n).toLocaleString("it-IT");
     const magRows=MAGS.filter(m=>!rMag||m===rMag).map(m=>({mag:m,kg:occD[m]||0,cap:CAP[m],perc:CAP[m]?((occD[m]||0)/CAP[m]*100):null})).filter(r=>r.kg>0||CAP[r.mag]);
     const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
     doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(184,137,46);doc.text("ASSOFRUTTI",14,18);
     doc.setFontSize(12);doc.setTextColor(40,40,40);doc.text("Resoconto disponibilita — situazione al "+fmtD(T),14,26);
     doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(110,110,110);doc.text("Campagna: "+(rCamp==="all"?"tutte":String(rCamp))+"   Magazzino: "+(rMag||"tutti")+"   Tipologia: "+(rTipo||"tutte")+"   Vista: "+vLbl+"   (generato il "+today+")",14,32);
-    autoTable(doc,{startY:38,theme:"plain",styles:{fontSize:10},head:[["Campagna","Naturali kg","Semilav. kg","Totale kg"]],headStyles:{fillColor:[245,230,200],textColor:[120,90,30],fontStyle:"bold"},body:[...perC.map(p=>[String(p.c),Math.round(p.natKg).toLocaleString("it-IT"),Math.round(p.semiKg).toLocaleString("it-IT"),Math.round(p.natKg+p.semiKg).toLocaleString("it-IT")]),["TOTALE",Math.round(gNat).toLocaleString("it-IT"),Math.round(gSemi).toLocaleString("it-IT"),Math.round(gNat+gSemi).toLocaleString("it-IT")],["Conto lavoro (terzi)","","",Math.round(clKg).toLocaleString("it-IT")],["Venduto intragruppo","","",Math.round(igKg).toLocaleString("it-IT")]]});
-    autoTable(doc,{startY:doc.lastAutoTable.finalY+6,head:[["Magazzino (fisico alla data)","Giacenza kg","Capienza kg","Riemp. %"]],headStyles:{fillColor:[184,137,46]},styles:{fontSize:9},body:magRows.map(r=>[r.mag,Math.round(r.kg).toLocaleString("it-IT"),r.cap!=null?r.cap.toLocaleString("it-IT"):"n/d",r.perc!=null?r.perc.toFixed(1)+"%":"n/d"])});
+    if(!isFis){
+      autoTable(doc,{startY:38,theme:"plain",styles:{fontSize:10},head:[["Campagna","Naturali kg","Semilav. kg","Totale proprieta kg"]],headStyles:{fillColor:[245,230,200],textColor:[120,90,30],fontStyle:"bold"},body:[...perC.map(p=>[String(p.c),IT(p.natKg),IT(p.semiKg),IT(p.natKg+p.semiKg)]),["TOTALE",IT(gNat),IT(gSemi),IT(gFis)]]});
+    }else{
+      const head=["Campagna","Proprieta"];if(showIG)head.push("+ Intragr.");if(showCL)head.push("+ C/lav.");head.push("= Fisico");
+      const line=p=>{const r=[String(p.c),IT(p.proK)];if(showIG)r.push(p.igKgC>0?IT(p.igKgC):"—");if(showCL)r.push(p.clKgC>0?IT(p.clKgC):"—");r.push(IT(p.natKg+p.semiKg));return r};
+      const tot=["TOTALE",IT(gPro)];if(showIG)tot.push(IT(gIG));if(showCL)tot.push(IT(gCL));tot.push(IT(gFis));
+      const emph=showIG||showCL?{}:{};
+      autoTable(doc,{startY:38,theme:"plain",styles:{fontSize:10},head:[head],headStyles:{fillColor:[245,230,200],textColor:[120,90,30],fontStyle:"bold"},body:[...perC.map(line),tot],didParseCell:d=>{if(d.column.index===head.length-1){d.cell.styles.fontStyle="bold";d.cell.styles.textColor=[120,90,30]}}});
+    }
+    autoTable(doc,{startY:doc.lastAutoTable.finalY+6,head:[["Magazzino (fisico alla data)","Giacenza kg","Capienza kg","Riemp. %"]],headStyles:{fillColor:[184,137,46]},styles:{fontSize:9},body:magRows.map(r=>[r.mag,IT(r.kg),r.cap!=null?r.cap.toLocaleString("it-IT"):"n/d",r.perc!=null?r.perc.toFixed(1)+"%":"n/d"])});
     perC.forEach(p=>{
-      autoTable(doc,{startY:doc.lastAutoTable.finalY+6,head:[["CAMPAGNA "+p.c+" — NATURALI","Lavoraz.","Calibro","Kg","Lotti","M.O.%","C.O.%"]],headStyles:{fillColor:[45,138,78]},styles:{fontSize:8},body:[...p.natRows.map(r=>[r.tipo,r.lav,r.cal,Math.round(r.kg).toLocaleString("it-IT"),String(r.n),ic(r.mo.toFixed(2)),ic(r.co.toFixed(2))]),["TOTALE","","",Math.round(p.natKg).toLocaleString("it-IT"),"","",""]]});
-      if(p.semiRows.length)autoTable(doc,{startY:doc.lastAutoTable.finalY+4,head:[["CAMPAGNA "+p.c+" — SEMILAVORATI","Tipo","Kg"]],headStyles:{fillColor:[36,113,163]},styles:{fontSize:8},body:[...p.semiRows.map(r=>[r.prod,r.tipo,Math.round(r.kg).toLocaleString("it-IT")]),["TOTALE","",Math.round(p.semiKg).toLocaleString("it-IT")]]});
+      const nh=["CAMPAGNA "+p.c+" — NATURALI","Lavoraz.","Calibro","Kg"];if(isFis)nh.push("di cui intr.");nh.push("Lotti","M.O.%","C.O.%");
+      const nb=p.natRows.map(r=>{const row=[r.tipo,r.lav,r.cal,IT(r.kg)];if(isFis)row.push(r.ig>0?IT(r.ig):"—");row.push(String(r.n),ic(r.mo.toFixed(2)),ic(r.co.toFixed(2)));return row});
+      const nt=["TOTALE","","",IT(p.natKg)];if(isFis)nt.push(p.igKgC>0?IT(p.igKgC):"—");nt.push("","","");
+      autoTable(doc,{startY:doc.lastAutoTable.finalY+6,head:[nh],headStyles:{fillColor:[45,138,78]},styles:{fontSize:8},body:[...nb,nt]});
+      if(p.semiRows.length){const shIG=isFis&&p.semiRows.some(r=>r.ig>0);const sh=["CAMPAGNA "+p.c+" — SEMILAVORATI","Tipo","Kg"];if(shIG)sh.push("di cui intr.");const sb=p.semiRows.map(r=>{const row=[r.prod,r.tipo,IT(r.kg)];if(shIG)row.push(r.ig>0?IT(r.ig):"—");return row});const st=["TOTALE","",IT(p.semiKg)];if(shIG)st.push("");autoTable(doc,{startY:doc.lastAutoTable.finalY+4,head:[sh],headStyles:{fillColor:[36,113,163]},styles:{fontSize:8},body:[...sb,st]});}
     });
-    if(rs.list.length)autoTable(doc,{startY:doc.lastAutoTable.finalY+6,head:[["RESE (fino alla data) — Prodotto","N.","Input kg","Output kg","Calo kg","Resa %"]],headStyles:{fillColor:[120,60,30]},styles:{fontSize:8},body:[...rs.list.map(r=>[r.prod,String(r.n),Math.round(r.inKg).toLocaleString("it-IT"),Math.round(r.outKg).toLocaleString("it-IT"),Math.round(r.calo).toLocaleString("it-IT"),ic(r.resa.toFixed(1))+"%"]),["TOTALE",String(rs.gn),Math.round(rs.gi).toLocaleString("it-IT"),Math.round(rs.go).toLocaleString("it-IT"),Math.round(rs.gcalo).toLocaleString("it-IT"),ic(rs.gresa.toFixed(1))+"%"]]});
+    if(rs.list.length)autoTable(doc,{startY:doc.lastAutoTable.finalY+6,head:[["RESE (fino alla data) — Prodotto","N.","Input kg","Output kg","Calo kg","Resa %"]],headStyles:{fillColor:[120,60,30]},styles:{fontSize:8},body:[...rs.list.map(r=>[r.prod,String(r.n),IT(r.inKg),IT(r.outKg),IT(r.calo),ic(r.resa.toFixed(1))+"%"]),["TOTALE",String(rs.gn),IT(rs.gi),IT(rs.go),IT(rs.gcalo),ic(rs.gresa.toFixed(1))+"%"]]});
     const pc=doc.internal.getNumberOfPages();for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(150,150,150);doc.text("Assofrutti S.r.l. — situazione al "+fmtD(T)+" — generato il "+today+" — pag. "+i+"/"+pc,14,doc.internal.pageSize.getHeight()-8)}
     doc.save("resoconto_"+T+".pdf");
   }finally{setRBusy(false)}};
