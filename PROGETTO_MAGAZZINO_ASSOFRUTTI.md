@@ -45,17 +45,15 @@ Esiste(va) un **git repo "parassita" nella cartella superiore** `Desktop/Magazzi
 - `rt` (rottame %): `ALTER TABLE lotti ADD COLUMN IF NOT EXISTS rt numeric DEFAULT 0;`
 - **`anno_raccolta`** (crop / annata di raccolta, integer): `ALTER TABLE lotti ADD COLUMN IF NOT EXISTS anno_raccolta integer;` — distinto da `anno`/`sett_prod` che sono la **lavorazione**.
 - **`conto_lavoro`** (boolean, merce di terzi): `ALTER TABLE lotti ADD COLUMN IF NOT EXISTS conto_lavoro boolean DEFAULT false;` (file `conto_lavoro.sql`).
-- **`intragruppo`** (boolean, vendita intragruppo/fittizia): `ALTER TABLE lotti ADD COLUMN IF NOT EXISTS intragruppo boolean DEFAULT false;` (file `intragruppo.sql`). `true` = venduto contabilmente ma ancora fisico a magazzino. NON tocca `mov`.
 - **`lotto_padre`** (nullable): id del lotto di provenienza (trasformazione o split di trasferimento parziale). Per N→1 = primo input (retro-compatibilità); la parentela completa è nella tabella ponte.
 
 **Tabella `trasformazione_input`** (parentela multipla N→1): id, figlio_id (FK lotti ON DELETE CASCADE), padre_id (FK lotti ON DELETE CASCADE), qta, created_at. File `trasformazione_multi.sql`.
 
 **Tabella `contratti`**: id, desc1, desc2, desc3, cliente, qta_tot, qta_evasa, scadenza.
 
-**Tabella `movimenti`**: id, tipo (ENTRATA/USCITA/TRASFERIMENTO/**TRASFORMAZIONE**/**INTRAGRUPPO**/**RIENTRO**), data, imballo, lotto, desc1, desc2, desc3, qta, magazzino, contratto_id, lotto_id, utente, **ddt**.
+**Tabella `movimenti`**: id, tipo (ENTRATA/USCITA/TRASFERIMENTO/**TRASFORMAZIONE**), data, imballo, lotto, desc1, desc2, desc3, qta, magazzino, contratto_id, lotto_id, utente, **ddt**.
 - TRASFERIMENTO: `contratto_id` riusato per il **magazzino sorgente** (full) o `"SPLIT|"+sorgente` (parziale); serve per annullare.
 - TRASFORMAZIONE: `contratto_id` = `"TRASF:"+figlio_id` su OGNI riga di scarico padre (collega lo scarico al lotto prodotto).
-- INTRAGRUPPO/RIENTRO: log delle transizioni del flag `intragruppo` (con DDT); non toccano `mov`. Annulla = ripristina il flag.
 - **`ddt`** (text): numero DDT su Uscite e Trasferimenti: `ALTER TABLE movimenti ADD COLUMN IF NOT EXISTS ddt text;` (file `ddt.sql`, idempotente).
 
 **Tabella `user_profiles`**: id, email, nome, ruolo (admin/operatore) — con RLS e trigger.
@@ -100,15 +98,6 @@ Lotti `conto_lavoro=true` = merce **non di proprietà** Assofrutti (es. foglio "
 - **Giacenze**: chip **Proprietà / Conto lavoro** (default solo proprietà) + badge **C/LAV** sui lotti di terzi.
 - **Entrata**: checkbox **"Merce in conto lavoro (di terzi)"** (`form.cl` → `conto_lavoro`). Default off; si azzera dopo ogni entrata.
 
-## 7-bis. VENDITA INTRAGRUPPO (fittizia, chiusura bilancio)
-
-Lotti `intragruppo=true` = venduti **contabilmente** (intragruppo/fittizio) ma ancora **fisici** a magazzino; verranno "riacquistati" in seguito.
-- **Azione in Giacenze** su selezione (pulsante "Intragruppo"): DDT obbligatorio, uscite sempre **complete** (niente kg parziali). Se la selezione è tutta in proprietà → "Segna venduto intragruppo"; se tutta intragruppo → "Rientro (annulla)"; selezione mista bloccata. Setta il flag e logga movimento `INTRAGRUPPO`/`RIENTRO` (lo stesso lotto, stessi big bag, stesso QR).
-- **Dashboard**: KPI "Venduto Intragruppo" (cliccabile → Giacenze filtrate); i totali di **proprietà escludono** gli intragruppo; l'**occupazione** magazzini li **include** (spazio fisico).
-- **Giacenze**: chip Proprietà/Conto lavoro/**Intragruppo** (default "own" esclude CL e IG); badge **INTRAGR.** (arancio) in tabella, card mobile, pannello info e Scanner.
-- **Storico Mov.**: tipi INTRAGRUPPO/RIENTRO filtrabili, badge dedicati, **annulla** ripristina il flag.
-- Resoconto ed export: riga "Venduto intragruppo" nel riepilogo + colonna Intragruppo nel dettaglio.
-
 ## 8. TRASFORMAZIONE MOLTI-A-UNO (N→1)
 
 ABC Service combina più lotti/big bag in un unico lotto prodotto (es. più big bag → granella).
@@ -135,22 +124,13 @@ Mostra i **lotti padre diretti** di un lotto figlio (legge `trasformazione_input
 - **Naturali · Dettaglio per Tipologia**: per ogni tipo, sgusciato per calibro (medie M.O./C.O.), gruppi qualità, rottame, scarti. Tutto cliccabile → Giacenze filtrate.
 - **Semilavorati · c/o ABC Service**: aggregati per prodotto (TOSTATE/GRANELLA/FARINA/PASTA) con kg, n. lotti, ripartizione per certificazione.
 - **Rese di trasformazione** (reportistica scarto): legge i movimenti TRASFORMAZIONE (raggruppa per `contratto_id="TRASF:"+figlio`), calcola per prodotto input/output/**calo**/resa% pesata. Il calo è una **perdita** di lavorazione, NON merce a magazzino.
-- **Resoconto PDF + Excel con pannello opzioni** (pulsante "Resoconto" in alto): **Campagna** (tutte → sezioni per `anno_raccolta` con subtotali + totale generale, oppure una), **Magazzino** (tutti/uno), **Tipologia** (tutte/una), **Situazione al** (data: se passata, lo stato viene ricostruito con `snapAt`), **Vista** (Proprietà-contabile: esclude conto lavoro e intragruppo / Fisica: tutta la merce). `genPDF(opts)`/`genExcel(opts)` async; fogli Excel: Riepilogo (parametri + per-campagna + CL/IG + magazzini alla data), Naturali e Semilavorati con colonna Campagna e subtotali, Rese (fino alla data), Dettaglio giacenze (con Campagna e flag). Le rese non sono divise per campagna. Il vecchio `buildRows` non esiste più.
-
-## 10-bis. SNAPSHOT A UNA DATA (`snapAt`) E PAGINA STORICO
-
-Motore module-level per la **situazione a una data T** (punti "giacenza a una certa data" e "resoconto retrodatato"):
-- `campOf(l)` = `anno_raccolta || anno`; `movsAfter(T)` = fetch dedicata `movimenti.gt("data",T)` (il limite 5000 di `loadAll` non basta per il replay); `calcRese(movs,lots)` = rese riusabile.
-- **`snapAt(lots,movs,T)`**: replay **all'indietro** dal presente. Ordina i movimenti con data > T in ordine inverso (data desc, id desc) e li annulla in memoria: USCITA → restituisce kg; ENTRATA → elimina il lotto (nato dopo T); TRASFERIMENTO full → ripristina magazzino da `contratto_id`; SPLIT| → restituisce kg al `lotto_padre` (letto dai lotti originali) ed elimina il figlio; TRASFORMAZIONE (TRASF:fid) → elimina il figlio e restituisce kg ai padri; INTRAGRUPPO/RIENTRO → ripristina il flag. Sola lettura, **nessuna modifica schema**.
-- **Limite strutturale**: l'import crea i lotti **senza** movimento ENTRATA → lo snapshot è **attendibile da T ≥ baseline import**; per T precedenti mostra la baseline (nota in UI).
-- **Pagina Storico riscritta** (`StoricoPage({lotti})`, riceve i lotti completi non filtrati per campagna): date-picker "Situazione al", banner sola-lettura con n. movimenti annullati, filtri Campagna/Tipologia/Magazzino/Vista (Proprietà/Fisica/Conto lavoro/Intragruppo), KPI (giacenza, CL, IG, per magazzino), tabella con badge e export. Il vecchio replay "in avanti" dalle sole ENTRATE (che perdeva i lotti importati) è stato eliminato.
+- **Resoconto PDF + Excel** (pulsanti in alto): `genPDF()` (jsPDF + autoTable, impaginato) e `genExcel()` (XLSX multi-foglio: Riepilogo, Naturali, Semilavorati, Rese, Dettaglio giacenze).
 
 ## 11. PAGINE E PERMESSI
 
 | Pagina | Operatore | Admin |
 |---|---|---|
-| Dashboard, Giacenze, Ricerca, Storico (situazione a una data), Storico Mov. | Sì | Sì |
-| Vendita intragruppo / Rientro (Giacenze, selezione) | Sì | Sì |
+| Dashboard, Giacenze, Ricerca, Storico, Storico Mov. | Sì | Sì |
 | Entrata (nuovo lotto) / Trasformazione N→1 | Sì | Sì |
 | Uscita / Trasferimento / Assegnazione su selezione (Giacenze) | Sì | Sì |
 | Scanner (lettura QR + lista azioni: vendi **o** trasferisci) | Sì | Sì |
@@ -220,10 +200,7 @@ Import dai file Excel aziendali, **uno per annata di raccolta**, **mappatura col
 14. **Mobile = solo dietro `isMobile`**: mai toccare i path desktop, così PC resta identico.
 15. **QR = `ASSOFRUTTI:<id>`**: nessuna colonna nuova; non cambiare lo schema per la feature QR.
 16. **`LABEL` (etichette DYMO)**: va impostato alla misura reale; default 101.6×54 mm.
-17. **Intragruppo non tocca `mov`**: la vendita intragruppo/rientro cambia SOLO il flag e logga il movimento; mai decrementare i kg.
-18. **Snapshot: fetch dedicata**: per `snapAt` usare `movsAfter(T)` (il `movimenti` in memoria è limitato a 5000 righe e non basta per date lontane).
-19. **Snapshot attendibile da baseline import in poi** (l'import non crea movimenti ENTRATA).
-20. **Validare sempre** il file con esbuild prima della consegna (`npx esbuild App.jsx --bundle --loader:.jsx=jsx --external:react --external:./supabase --external:xlsx --external:html5-qrcode --format=esm --outfile=/dev/null`).
+17. **Validare sempre** il file con esbuild prima della consegna (`npx esbuild App.jsx --bundle --loader:.jsx=jsx --external:react --external:./supabase --external:xlsx --external:html5-qrcode --format=esm --outfile=/dev/null`).
 
 ## 17. PREFERENZE DI LAVORO DI GABRIELE
 
@@ -255,11 +232,6 @@ Questa sessione ha consegnato e deployato:
 15. **Trasformazione**: selezione solo "da trasformare" + chip "Includi semilavorati"; **imballo prodotto rimosso** (solo lotto).
 16. **Nuova pagina "Controllo semilavorati"** (`ControlloSemiPage`): verifica per trasformazione di input/output/**calo**/**resa%** + DDT andata ABC + tracciabilità espandibile; riepiloghi per prodotto e totale periodo; filtri annata/prodotto. **Ricostruita dai movimenti `TRASFORMAZIONE` (`contratto_id="TRASF:"+figlio`) — nessuna modifica al DB.**
 
-**Sprint "intragruppo + reportistica + snapshot":**
-17. **Vendita intragruppo** (§7-bis): flag `intragruppo` (`intragruppo.sql`), azione bulk in Giacenze con DDT, movimenti INTRAGRUPPO/RIENTRO con annulla, KPI dashboard, badge ovunque, esclusione dai totali di proprietà.
-18. **Resoconto con pannello opzioni** (§10): campagna (sezioni)/magazzino/tipologia/data situazione/vista contabile-fisica, PDF+Excel.
-19. **Motore `snapAt`** + **Storico riscritto** (§10-bis): situazione a una data con replay all'indietro, filtri e viste; fetch dedicata `movsAfter(T)`.
-
 ## 19. ROADMAP / IN SOSPESO
 
 - **Valori capienza `CAP`**: inserire i kg reali dei magazzini (oggi `null` → "n/d").
@@ -269,9 +241,30 @@ Questa sessione ha consegnato e deployato:
 - **UX mobile — eventuale Fase 3** (solo se usata da telefono): altre tabelle a schede (Storico Mov., Ricerca, Contratti), form lunghi a colonna singola.
 - **Idea "next big thing" discussa**: assistente di allocazione lotti per contratto (FIFO per annata, minimizza la qualità "regalata") — potenziamento, non fondante.
 - **Scanner su lotti ABC**: oggi l'azione è bloccata per `magazzino==="ABC Service"`. Da decidere se permettere vendita/trasferimento dei **semilavorati finiti** direttamente dallo Scanner (relax di `blocked`).
-- **Scanner su lotti intragruppo**: l'azione vendi/trasferisci NON è bloccata per i lotti `intragruppo=true` (fisicamente presenti). Da decidere se bloccarla o avvisare.
-- **Date azioni bulk/Scanner**: usano **oggi** (come l'uscita rapida). Valutare date-picker se serve retrodatare uscite/trasferimenti (nota: lo Storico ora permette comunque di *consultare* il passato).
+- **Date azioni bulk/Scanner**: usano **oggi** (come l'uscita rapida). Valutare date-picker se serve retrodatare uscite/trasferimenti.
 - **"Rese di trasformazione" in Dashboard**: ora c'è la pagina dedicata "Controllo semilavorati"; valutare se rimuoverla dalla Dashboard per evitare doppioni.
 - **Backlog P2/P3**: micro-rifiniture UX (la revisione da PC è già fatta).
 
 > **Per continuare in una nuova chat**: incolla questo MD + allega l'ultima `src/App.jsx`. Comunica eventuali nuove colonne/modifiche al DB.
+
+
+---
+
+## 20. PARTNER (anagrafica controparti) + TRACCIABILITÀ STATO
+
+**Partner** (`partner.sql`): tabella `partner`(id, nome, attivo) + colonna `lotti.partner_id` (nullable, FK). Una stessa azienda puo' essere sia committente conto lavoro sia cliente intragruppo (nessun campo "tipo": compare in entrambe le tendine). RLS permissiva per autenticati (pagina riservata admin lato UI). `loadAll` carica i partner con fetch **resiliente** (se la tabella non esiste ancora l'app non si rompe, partner=[]).
+- **Pagina Partner** (`PartnerPage`, solo admin): aggiungi / rinomina / attiva-disattiva (disattivare invece di eliminare per non perdere i riferimenti storici).
+- Tendina partner in: **Entrata** (committente, se conto lavoro), **azione Intragruppo in Giacenze** (cliente), **modifica Lotto**. Nome partner accanto ai badge C/LAV e INTRAGR. (tabella, card mobile, pannello info Giacenze).
+- **Filtro Partner** in Giacenze e in Lotti → risponde a "quanto ho verso/da X".
+
+**Modifica lotto — stato merce + partner** (LottiPage): selettore *Di proprieta / Conto lavoro / Intragruppo* + tendina partner. **Ogni cambio di stato intragruppo viene loggato** in `movimenti` (INTRAGRUPPO/RIENTRO) con `nota="da modifica lotto — ..."` (sul rientro registra il partner di provenienza). Cosi' ogni transizione e' rintracciabile e annullabile dallo Storico.
+
+**Colonna `movimenti.nota`** (`nota_mov.sql`): testo di tracciabilita'. Mostrata in Storico Movimenti (colonna Nota) ed export. L'azione Intragruppo/Rientro in Giacenze scrive in nota il cliente / "rientro da <partner>".
+
+**Dashboard — interruttore Fisica / Proprieta** (default **Fisica**): in alto, gemello del resoconto. `av` (e quindi totali e dettaglio per tipologia) segue la vista; le KPI Conto Lavoro e Intragruppo restano come scomposizione. Card "Giacenza" con label dinamica e sottotitolo esplicito ("include intragr. e c/lavoro" / "solo proprieta"). L'occupazione magazzini resta sempre fisica.
+
+**Filtri Lotti ampliati**: ricerca lotto (testo) + Lavorazione, Calibro, Magazzino, Merce (proprieta/CL/intragruppo), Partner, oltre a Tipo/Stato/Campagna, con Pulisci.
+
+**Resoconto — riquadro a scomposizione** (§10, aggiornato): vista **contabile** = solo proprieta (nessuna riga/colonna intragruppo o conto lavoro); vista **fisica** = colonne Proprieta / +Intragruppo / +Conto lavoro / =Fisico con **colonne vuote nascoste**; dettaglio per tipologia con colonna "di cui intragr." solo in fisica. Invariante verificata: Proprieta + Intragruppo + Conto lavoro = Fisico.
+
+**SQL di questo blocco (eseguire PRIMA del push):** `partner.sql`, `nota_mov.sql`.
