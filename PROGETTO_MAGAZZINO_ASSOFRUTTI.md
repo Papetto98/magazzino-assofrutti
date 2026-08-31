@@ -268,3 +268,39 @@ Questa sessione ha consegnato e deployato:
 **Resoconto — riquadro a scomposizione** (§10, aggiornato): vista **contabile** = solo proprieta (nessuna riga/colonna intragruppo o conto lavoro); vista **fisica** = colonne Proprieta / +Intragruppo / +Conto lavoro / =Fisico con **colonne vuote nascoste**; dettaglio per tipologia con colonna "di cui intragr." solo in fisica. Invariante verificata: Proprieta + Intragruppo + Conto lavoro = Fisico.
 
 **SQL di questo blocco (eseguire PRIMA del push):** `partner.sql`, `nota_mov.sql`.
+
+
+---
+
+## 21. SESSIONE "RIFINITURA RESOCONTO + CORREZIONE INTRAGRUPPO + CONTRATTI"
+
+### 21.1 Resoconto — layout definitivo (rivisto con Gabriele su anteprime)
+- **Vista contabile**: SOLO proprieta. Nessuna riga/colonna intragruppo o conto lavoro. Dettaglio per tipologia = solo merce di proprieta.
+- **Vista fisica** (ora **default** del pannello resoconto, `rVista` init `"phys"`): riquadro a scomposizione `Campagna | Proprieta | +Intragruppo | +Conto lavoro | =Fisico`; **colonne +Intragruppo/+Conto lavoro nascoste se il totale e' 0**. Dettaglio per tipologia con colonna **"di cui intr."** (nascosta se 0). Invariante verificata: Proprieta + Intragruppo + Conto lavoro = Fisico.
+- **Tabella "Magazzino (fisico alla data)"**: usa `occD` = SEMPRE fisico (somma tutti i lotti con disp>0 prima del filtro vista), quindi include gia' intragruppo e conto lavoro. NON e' un bug se mostra pochi magazzini: rispecchia i dati (vedi 21.4).
+- **Export Excel — colonna Partner** aggiunta nel foglio "Dettaglio giacenze" (resoconto, via `pMapR` in DashboardPage) e nell'export rapido Giacenze (`XC.giacenze` legge `r._pnome`, iniettato in GiacenzePage dal `pMap`).
+
+### 21.2 Dashboard
+- **Interruttore Fisica/Proprieta** (default **Fisica**). In vista **Proprieta** le KPI "Venduto Intragruppo" e "Conto Lavoro" **sono nascoste** (gate `dashView==="phys"&&tot>0`); compaiono solo in Fisica come scomposizione. Card Giacenza con label e sottotitolo dinamici.
+- **BUG storico risolto**: lo stile dei bottoni toggle era stato scritto come funzione `style={(a)=>({...})("phys")}` -> React error #62 (schermata login che lampeggia e poi nero). Fix: oggetto stile diretto `style={{...dashView==="phys"?...}}`. **Regola: `style` deve essere un oggetto, mai una funzione.**
+
+### 21.3 Contratti — quantita gia evasa in creazione
+Il campo "Qta Evasa" era mostrato solo in modifica (`{eId&&...}`). Ora **"Qta gia evasa" e' visibile anche in creazione**, per caricare contratti gia' parzialmente evasi. Validazione: evasa non puo' superare il totale. Resta il punto di partenza; le uscite successive incrementano via `incrementa_evasa`.
+
+### 21.4 CORREZIONE INTRAGRUPPO — metodologia (IMPORTANTE, non ripetere l'errore)
+Il primo set intragruppo (133 big bag) era **sbagliato per difetto**. Lezioni:
+- **Metodo giusto = marcatori DIRETTI** nel file bilancio 31/07 (colonna cliente `col7` + qualificatore `col8`), NON la differenza 28->31. I venduti intragruppo **restano nel file** con disponibilita' azzerata e un marcatore; NON spariscono.
+- **Marcatori di vendita/fattura** (esclusi i "PER ASSOBIO"): `Vend assobio`, `fattura assobio`, `fat.assobio` (-> partner ASSOBIO); `FINELLI` + col8 `FATTURATE` (-> FINELLI); `BIOSIC` + col8 `FATTURATE` (-> BIOSIC, foglio BIOLOGICO). **Esclusi** i 13 `biosic` di FAIR FOR LIFE (senza "FATTURATE": sono riferimenti a contratto, non vendite).
+- **Chiave di aggancio corretta = lotto + numero big bag + CALIBRO (`desc3`)**. Senza il calibro, righe dello stesso big bag con calibri diversi (es. 11/13 e 13/15) collassano: era la causa di tutti gli scarti (~29.000 kg, 240-vs-194, ecc.).
+- **Risultato corretto: ~225 righe / ~222.496 kg** (ripartizione ASSOBIO 216 / FINELLI 6 / BIOSIC 4). Kg presi dal file fisico 19/08 (nel bilancio 31/07 sono azzerati). Resta ~1 riga/~400 kg di scarto residuo (un doppione nel 19/08), irrilevante.
+- File prodotti: `intragruppo_azzera.sql` (toglie tutti i flag intragruppo), `intragruppo_correggi_2025.sql` (azzera + marca i 225 con partner, aggancio per chiave-con-calibro via `regexp_replace`), `intragruppo_CORRETTO_bigbag.xlsx` (lista di controllo).
+
+### 21.5 Stato dati reale (appurato via query Supabase)
+- Campagna **2025**: merce fisica solo in **Fabbrica** (~269.882 kg, di cui 142.000 intragruppo) e **Vignanello** (~155.554 kg, di cui 80.496 intragruppo). Caprarola/Soriano/ABC Service **vuoti** per il 2025 — corretto, non un bug.
+- Campagna **2024**: ~28.380 kg proprieta (in altri magazzini), invariata.
+- Totale fisico ~453.816 kg (2025+2024).
+- Query utile per spacchettare i totali quando "non tornano":
+  `SELECT magazzino,count(*),round(sum(q_iniz-mov)) kg,round(sum(CASE WHEN intragruppo THEN q_iniz-mov ELSE 0 END)) ig FROM lotti GROUP BY magazzino;`
+
+### 21.6 SQL di sessioni recenti (eseguire su Supabase PRIMA del push)
+`partner.sql` (tabella partner + lotti.partner_id), `nota_mov.sql` (movimenti.nota). Gia' eseguiti da Gabriele. Le correzioni intragruppo (`intragruppo_correggi_2025.sql`) sono operazioni-dati, non legate al push del codice.
