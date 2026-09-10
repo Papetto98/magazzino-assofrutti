@@ -24,7 +24,7 @@ L'utente principale è **Gabriele** (admin: gabriele.cristofori98@gmail.com). Il
 **Regola d'oro:** gli script SQL e gli `ALTER TABLE` si eseguono su Supabase **PRIMA** del push; gli import con `--conferma` **DOPO**.
 ```bash
 cd magazzino-assofrutti
-git add .
+git add <file elencati uno per uno, es. src/App.jsx>
 git commit -m "<messaggio adatto alle modifiche>"
 git pull --rebase origin main
 git push origin main
@@ -137,6 +137,7 @@ Mostra i **lotti padre diretti** di un lotto figlio (legge `trasformazione_input
 | Controllo semilavorati (verifica trasformazioni, cali, rese — sola lettura) | Sì | Sì |
 | Annulla movimento (Storico Mov.) | Sì | Sì |
 | Export Excel / Stampa / Resoconto PDF-Excel / Etichette QR / Scanner | Sì | Sì |
+| Registro DDT (elenco, ristampa PDF) | Sì | Sì |
 | Contratti: crea/modifica/elimina | No | Sì |
 | Lotti: modifica/elimina | No | Sì |
 | Utenti: crea/gestisci ruoli | No | Sì |
@@ -304,3 +305,30 @@ Il primo set intragruppo (133 big bag) era **sbagliato per difetto**. Lezioni:
 
 ### 21.6 SQL di sessioni recenti (eseguire su Supabase PRIMA del push)
 `partner.sql` (tabella partner + lotti.partner_id), `nota_mov.sql` (movimenti.nota). Gia' eseguiti da Gabriele. Le correzioni intragruppo (`intragruppo_correggi_2025.sql`) sono operazioni-dati, non legate al push del codice.
+
+
+---
+
+## 22. DDT GENERATO DALL'APP + REGISTRO DDT
+
+**Perche'**: per ABC il vostro DDT di andata e' di fatto il "lotto" (ABC risale solo fino al numero DDT e dichiara il calo per DDT esaurito, es. documento di scarico 245 "calo peso da lavorazione esaurimento DDT 09/F"). Un DDT con una riga per lotto/big bag/annata e' quindi tutta la tracciabilita' disponibile verso ABC. Prima i DDT si facevano su Excel con descrizioni generiche ("nocciole e granella tostate vari formati").
+
+**Numerazione**: resta quella del **gestionale** (l'operatore digita il numero). La serie la decide l'app dal magazzino di partenza (`MAG_INFO`): Caprarola `n/anno`, Soriano `n/S/anno`, Fabbrica `n/F/anno`, Vignanello `n/M/anno`. Numero, serie e anno sono campi separati → "09/F" e "9/F" sono lo stesso DDT. Indice unico `(serie, anno, numero)` → doppione bloccato ("risulta gia' emesso nell'app"). L'app mostra l'"ultimo in app" come promemoria, ma la fonte resta il gestionale. **Da ABC Service l'app non genera DDT** (lo emette ABC: si digita il loro numero).
+
+**Dove**: Giacenze → **Trasferisci…** e **Uscita…**. Spunta "Genera DDT dall'app" (default attiva; disattivabile per digitare un DDT gia' fatto). Condizioni: lotti di **un solo magazzino** di partenza (il DDT ha un solo luogo di partenza), partenza diversa da ABC. Precompilati: causale (→ABC `C/LAVORAZIONE`, tra sedi `TRASFERIMENTO TRA SEDI`, uscita `VENDITA`), destinatario (ABC / Assofrutti / acquirente del lotto), luogo destinazione (Idem / magazzino interno). Campi trasporto: a cura di, aspetto, colli (default n. righe), peso lordo, porto, vettore, inizio trasporto (default data), annotazioni, n./data fattura (solo uscita).
+- **Data scelta** (non piu' "oggi") per uscite e trasferimenti da Giacenze: e' la data del DDT e dei movimenti. Scanner invariato (oggi + DDT digitato).
+- Avvisi: verso ABC con certificazioni miste o naturali+semilavorati (il calo ABC mescolerebbe lavorazioni); **certificato bio scaduto blocca la generazione** (aggiornare `CERT_BIO`).
+- Sequenza: insert `ddt` (riserva il numero) → movimenti con `ddt` (stringa formattata) e `ddt_id` → se alcune righe falliscono il DDT viene ridotto alle righe riuscite; se falliscono tutte viene cancellato → PDF scaricato.
+
+**PDF** (`genDDT(row)`, jsPDF+autoTable): layout minimale con tutte le voci dell'Excel (intestazione da volantino punti di ritiro, destinatario, luogo destinazione, luogo partenza con indirizzo stabilimento, causale, trasporto a cura, righe per lotto con certificazione/lotto/imballo/annata/kg, totale peso netto, "Merce di origine italiana", dicitura Bioagricert su righe BIOLOGICHE/FAIR FOR LIFE/BIOSUISSE marcate `*`, aspetto/colli/pesi/porto/vettore/inizio/data ritiro, fattura, annotazioni, 3 firme, dicitura art. 62). Multipagina con intestazione "segue"; piede sull'ultima pagina. Filigrana **ANNULLATO** sulle ristampe di DDT annullati.
+- Costanti: `AZ_DDT`, `MAG_INFO` (serie+indirizzi; Vignanello = c/o Produttori Nocciole Monti Cimini, Strada Vasanellese 16, CAP 01039 da verificare), `DEST_ABC`, `DEST_AF`, `BIO_TIPI`, `CERT_BIO` (testo + validita' 03/02/2025–03/02/2028), `CAUS_DDT`.
+
+**Registro DDT** (pagina `DdtPage`, voce menu per tutti): filtri anno/partenza/stato/testo, ristampa PDF dalla fotografia `righe` salvata.
+
+**Annulla (Storico Movimenti)**: annullando una riga con `ddt_id`, se non restano altri movimenti collegati il DDT passa a `stato='annullato'` (resta in archivio, numero non riutilizzabile); altrimenti resta emesso e il messaggio lo segnala.
+
+**SQL**: `ddt_registro.sql` (tabella `ddt`, indice unico, `movimenti.ddt_id`, RLS) — **eseguire PRIMA del push**.
+
+**Fix minore**: messaggio Scanner sui lotti ABC ora rimanda a "Giacenze o Trasformazione" (Movimenti non esiste piu').
+
+**Prossimi passi discussi (non implementati)**: registrazione "Lavorazione ABC" per DDT di rientro (N ingressi → M prodotti, kg per DDT di origine, lotto ABC/formato/scadenza, destinazione rientro o cliente), chiusura partita con documento di scarico/calo ABC, quadratura fatture ABC; DDT anche dallo Scanner.
