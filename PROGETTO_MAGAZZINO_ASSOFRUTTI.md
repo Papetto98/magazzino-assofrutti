@@ -373,3 +373,27 @@ Il primo set intragruppo (133 big bag) era **sbagliato per difetto**. Lezioni:
 **Stampa tracciabilita'** (`stampaTracciabilita(lot)`, bottone `TracBtn`): PDF A4 con scheda lotto (tipo, lav, cal, magazzino, kg, annata, lavorazione, contratto/cliente, scadenza, merce, rientro ABC, qualita'), **Origine a ritroso** multilivello (trasformazione_input + `lotto_padre` per split, fino a 8 livelli, con kg usati, DDT andata / rientro ABC, M.O./C.O.), **Destinazione in avanti** (prodotti derivati e split, kg da origine, disponibilita', documento ABC), **Uscite** del lotto e dei derivati (data, kg, DDT, cliente, nota), **Movimenti del lotto**. Bottone "Tracciabilità" in: Giacenze (con 1 lotto selezionato, e nel pannello info), Storico Movimenti (pannello lotto), Scanner (scheda big bag).
 
 **SQL**: `fix_movimenti_tipo.sql` (solo DB, idempotente; nessuna dipendenza dal push).
+
+
+---
+
+## 25. SCALA CERTIFICAZIONI + PANNELLO LATERALE USCITA/TRASFERIMENTO
+
+**Scala di compatibilita' (rientri ABC)** — `CERT_OK` / `certOkP` in App.jsx, `cert_ok()` in DB:
+| Prodotto | Origini ammesse |
+|---|---|
+| CONVENZIONALI | tutte (da bio e superiori = declassamento) |
+| BIOLOGICHE | Biologiche, Fair for Life, Biosuisse (dagli ultimi due = declassamento) |
+| FAIR FOR LIFE / BIOSUISSE / GIFFONI | solo lo stesso tipo |
+- Rientro: la tendina Tipo mostra solo i tipi ammessi dalle partite scelte; il tipo si precompila da una partita mono-tipo. Per default si scarica dai lotti **dello stesso tipo** del prodotto; se la partita ha piu' tipi compatibili compare "Tipo origine" (le voci inferiori sono marcate "declassamento").
+- **Declassamento** (origine ≠ prodotto, ammesso dalla scala): riquadro arancione + **motivo obbligatorio**; salvato in `lotti.declassamento` ("Declassamento X → Y: motivo"). Badge **DECLASSATO** in: prodotti della partita, pannello info Giacenze, Tracciabilità, stampa tracciabilità (scheda + tabelle origine/destinazione).
+- La RPC `abc_rientro` ricontrolla lato DB la scala e l'obbligo del motivo (testato su PostgreSQL 16: FFL da bio bloccato, bio da conv bloccato, conv da bio senza motivo bloccato, con motivo ok).
+- **DDT verso ABC con certificazioni diverse**: blocco con **conferma esplicita** (spunta "Confermo l'invio con certificazioni diverse", `dd.mixOk`), controllato anche in `doBulkTransfer`. Naturali+semilavorati insieme = solo avviso.
+
+**Pannello laterale (Giacenze › Uscita… / Trasferisci…)** — `renderAz()` in GiacenzePage, sostituisce i pannelli in linea e `DdtForm`/`ddtBlock` (rimossi):
+- Drawer fisso a destra largo `PANEL_W`=470px (a schermo intero su mobile); la pagina riceve `paddingRight` cosi' la tabella resta visibile e la selezione si puo' modificare (× su ogni lotto per toglierlo).
+- Sezioni: **1 Cosa esce / Cosa trasferisci** (lotti compatti, kg modificabili nel trasferimento, riepilogo prodotto e M.O./C.O. pesate) · **2 A chi** (uscita: campo unico con suggerimenti dei contratti aperti; senza contratto il testo = acquirente) / **Dove** (trasferimento: pulsanti magazzino) · **3 Documento** (numero + anteprima serie, data, destinatario, causale e "trasporto a cura del" come pulsanti `Seg`, riga partenza/destinazione con "cambia", **Altri dati di trasporto** chiusi con riepilogo).
+- Barra fissa in fondo: totale kg, **Anteprima** (PDF con filigrana ANTEPRIMA, nulla salvato; `genDDT` con `stato:"anteprima"`, `ddtPrep(...,preview)`), **Conferma**.
+- **Preferenze per destinatario** in `localStorage` (`ddtPref:<prima riga destinatario>`: aspetto, porto, vettore, a cura) salvate a ogni DDT generato e riproposte quando si sceglie lo stesso destinatario (`ddtWithPref`). Solo sul computer in uso.
+
+**SQL**: `certificazioni.sql` (colonna `lotti.declassamento`, funzione `cert_ok`, RPC `abc_rientro` aggiornata) — **eseguire PRIMA del push**.
