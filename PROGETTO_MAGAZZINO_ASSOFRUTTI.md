@@ -397,3 +397,33 @@ Il primo set intragruppo (133 big bag) era **sbagliato per difetto**. Lezioni:
 - **Preferenze per destinatario** in `localStorage` (`ddtPref:<prima riga destinatario>`: aspetto, porto, vettore, a cura) salvate a ogni DDT generato e riproposte quando si sceglie lo stesso destinatario (`ddtWithPref`). Solo sul computer in uso.
 
 **SQL**: `certificazioni.sql` (colonna `lotti.declassamento`, funzione `cert_ok`, RPC `abc_rientro` aggiornata) — **eseguire PRIMA del push**.
+
+
+---
+
+## 27. ANAGRAFICA CLIENTI (partner esteso) PER DDT E CONTRATTI
+
+**Modello** — un'unica anagrafica: la tabella `partner` (prima solo nome/attivo) ora ha `indirizzo, cap, citta, provincia, piva, cf, note`. Stesse schede per clienti, destinatari DDT e controparti conto lavoro/intragruppo (niente doppioni ASSOBIO/BIOSIC). Nuove tabelle: `partner_luoghi` (luoghi di consegna, piu' di uno per cliente, uno `predefinito`) e `partner_pref` (preferenze di trasporto condivise: aspetto, porto, vettore, a cura del). Collegamenti: `contratti.partner_id`, `ddt.partner_id`. ABC Service e' una scheda dell'anagrafica ("A.B.C. SERVICE SRL", creata/completata dallo script).
+
+**Permessi (RLS)** — tutti gli utenti vedono e **aggiungono** schede e luoghi; **modifica/eliminazione solo admin** (`af_is_admin()` legge `user_profiles.ruolo` per `auth.uid()`); `partner_pref` modificabile da tutti (si aggiorna a ogni DDT). Lo script elimina le vecchie policy permissive su `partner` e crea le nuove. Verifica finale nello script: i profili devono essere collegati ad `auth.users`.
+
+**Normalizzazione nomi** — `af_norm()` (DB) / `normNome()` (app): maiuscolo, punteggiatura via, sigle societarie tolte (SRL, S.R.L., SPA, SNC, SAS, SOC, COOP, SOCIETA, AGRICOLA, SS, SRLS). Usata per doppioni e abbinamenti ("Rossi s.r.l." = "ROSSI SRL").
+
+**Pagina Anagrafica** (voce di menu per tutti, sostituisce "Partner" admin): ricerca, solo attivi, "+ Nuovo cliente" (controllo doppioni), scheda con destinatario come apparira' sul DDT, luoghi di consegna (aggiungi: tutti; modifica/predefinito/elimina: admin), preferenze di trasporto, contratti collegati; Modifica/Disattiva solo admin.
+
+**Pannello uscita/trasferimento (`AzionePanel`, prop `anag`)**:
+- "A chi": suggerimenti = contratti compatibili + **clienti dell'anagrafica** (senza contratto → registrato come acquirente con la ragione sociale). Scelto contratto o cliente: destinatario = indirizzo completo (`pAddr`), luogo di consegna predefinito (`lAddr`), preferenze di trasporto dal DB (`partner_pref`, fallback localStorage). "+ Aggiungi «nome» all'anagrafica": mini-scheda (ragione sociale, indirizzo, CAP, citta', prov., P.IVA) salvata e usata subito.
+- Lotti gia' assegnati a un solo contratto: destinatario iniziale dalla scheda del cliente del contratto.
+- Documento › "cambia": selettore dei luoghi di consegna del cliente (Idem / luoghi / altro).
+- Trasferimento verso ABC: destinatario dalla scheda ABC (fallback costante `DEST_ABC`).
+- A ogni DDT emesso: `ddt.partner_id` salvato e `partner_pref` aggiornato (upsert).
+
+**Contratti**: campo Cliente con suggerimenti dall'anagrafica; al salvataggio il contratto viene collegato (scheda scelta, oppure abbinata per nome, oppure **creata** se nuova). Badge "non in anagrafica" sui contratti non collegati.
+
+**SQL** (in ordine):
+1. `anagrafica.sql` — **PRIMA del push** (colonne, tabelle, permessi, ABC in anagrafica, `af_norm`, `af_is_admin`).
+2. `collega_contratti_anteprima.sql` — sola lettura: esito per ogni cliente dei contratti (uguale / DA VERIFICARE / AMBIGUO / NUOVO).
+3. `collega_contratti.sql` — crea le schede mancanti e collega i contratti (dopo aver controllato l'anteprima).
+Testati su PostgreSQL 16 (idempotenza, abbinamenti, permessi operatore/admin).
+
+**Rimandato**: import dell'anagrafica dal gestionale (Excel/CSV).
