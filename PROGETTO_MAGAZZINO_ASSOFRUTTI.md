@@ -427,3 +427,30 @@ Il primo set intragruppo (133 big bag) era **sbagliato per difetto**. Lezioni:
 Testati su PostgreSQL 16 (idempotenza, abbinamenti, permessi operatore/admin).
 
 **Rimandato**: import dell'anagrafica dal gestionale (Excel/CSV).
+
+
+---
+
+## 28. VOCABOLARIO CALIBRI · LOGIN A SESSIONE · ANALISI PRODOTTI · ESTRATTO CLIENTE
+
+**Calibro per lavorazione** (`CAL_BY_LAV`, `calsFor`, `calFix`, `calOk`, `calReq`, `calLibero`, `calLabel`, componente `CalSel`):
+| Lavorazione | Valori | Obbligatorio |
+|---|---|---|
+| SGUSCIATE / TOSTATE | 9/11, 11/13, 13/15, DA SCEGLIERE | si' |
+| ROTTAME | VENTILATO, PICCOLO, GRANDE, DA SCEGLIERE | si' |
+| GRANELLA | 2/4, 2/6 + "Altro…" (libero, esigenze cliente) | si' |
+| PASTA | CHIARA / SCURA — campo etichettato **Variante** | no |
+| FARINA / SCARTI | nessuno: il campo sparisce | — |
+Il campo si adatta al prodotto scelto e si azzera quando la lavorazione cambia (`calFix`). `CALS` = valori nuovi; `CALS_F` (con GRANELLA/FARINA/PASTA/UNICO storici) usato **solo nei filtri**, cosi' i lotti vecchi restano cercabili. La variante della pasta non sta piu' nel formato/imballo. `CAL_SEMI` eliminato: il rientro ABC usa `calsFor(prodotto)`.
+SQL dati (non legati al push): `calibri_anteprima.sql` (sola lettura: da svuotare / da compilare / da correggere a mano) e `calibri_pulizia.sql` (svuota solo FARINA, SCARTI e PASTA con calibro non valido). I "da correggere a mano" si sistemano dalla pagina Lotti.
+
+**Login a sessione** (`src/supabase.js`): il client Supabase salva la sessione in `sessionStorage` (prima localStorage) con `storageKey` dedicata → **chiudendo il browser l'accesso decade**; ricaricare la pagina non disconnette; ogni scheda ha la sua sessione. Fallback in memoria se `sessionStorage` non esiste (build). Serve perche' i movimenti sono registrati con l'utente collegato.
+
+**Pagina Analisi prodotti** (`AnalisiPage`, voce di menu al posto di "Clienti", che e' stata rimossa — l'anagrafica la sostituisce):
+- **Giacenza per calibro** (predefinito: lavorazione SGUSCIATE, dettaglio per Tipo): una riga per calibro con kg, lotti, M.O./C.O. medi pesati e **distribuzione per fascia** (0-2 / 2-4 / 4-6 / >6%) in percentuale dei kg; espandendo, lo stesso dettaglio per tipo, magazzino, annata o lavorazione. KPI in alto, export Excel.
+- **Produzione del periodo**: movimenti ENTRATA tra due date (esclusi gli split di trasferimento `SPLIT|` e i rientri da ABC `doc_id`), per settimana ISO o mese: totale, sgusciate con M.O./C.O. pesati, rottame, scarti e ripartizione per calibro. E' la **produzione, non la resa**: i kg di nocciole in guscio non sono nell'app (restano nel gestionale). Per la resa servirebbe registrare il guscio lavorato — non fatto.
+- **Dashboard**: rimossi i due riquadri "Marcio occulto / Cimiciato occulto per fascia" dal dettaglio per tipologia (erano calcolati su tutto lo sgusciato del tipo, non per calibro); al loro posto un rimando ad Analisi prodotti. Restano le medie per calibro.
+
+**Estratto merce per cliente** (scheda Anagrafica › "Estratto merce"): uscite di un periodo collegate al cliente per contratto (`contratti.partner_id` o nome normalizzato) oppure registrate a suo nome (`movimenti.nota` "acquirente: …" o `lotti.acquirente`). Mostra kg totali, numero consegne, M.O./C.O. medi pesati; **PDF** (`stampaEstratto`: righe con data, DDT, lotto, imballo, prodotto, annata, kg, qualita', contratto + riepilogo per prodotto) ed **Excel**. Limite: l'aggancio per nome non trova le uscite registrate con una grafia diversa.
+
+**Nessuna modifica di struttura al database** in questo rilascio (solo i due script sui dati dei calibri).
