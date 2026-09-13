@@ -454,3 +454,22 @@ SQL dati (non legati al push): `calibri_anteprima.sql` (sola lettura: da svuotar
 **Estratto merce per cliente** (scheda Anagrafica › "Estratto merce"): uscite di un periodo collegate al cliente per contratto (`contratti.partner_id` o nome normalizzato) oppure registrate a suo nome (`movimenti.nota` "acquirente: …" o `lotti.acquirente`). Mostra kg totali, numero consegne, M.O./C.O. medi pesati; **PDF** (`stampaEstratto`: righe con data, DDT, lotto, imballo, prodotto, annata, kg, qualita', contratto + riepilogo per prodotto) ed **Excel**. Limite: l'aggancio per nome non trova le uscite registrate con una grafia diversa.
 
 **Nessuna modifica di struttura al database** in questo rilascio (solo i due script sui dati dei calibri).
+
+
+---
+
+## 29. ELIMINAZIONI ADMIN · RIFINITURE ANALISI · CAMPAGNA "TUTTE"
+
+**Eliminazione cliente** (Anagrafica, solo admin): bottone Elimina con conferma. Bloccato se il cliente ha contratti collegati ("puoi disattivarlo"); i luoghi di consegna vengono eliminati in cascata; se il DB rifiuta per vincoli (DDT o altro) il messaggio invita a disattivare. Disattivare resta la scelta di default per le schede gia' usate.
+
+**Eliminazione DDT** (Registro DDT, solo admin): bottone Elimina per riga. Prima conta i `movimenti.ddt_id`: se ce ne sono, rifiuta e rimanda ad annullarli da Storico Movimenti (cosi' il DDT passa ad ANNULLATO da solo). Solo un DDT senza movimenti puo' essere eliminato — e il numero torna libero, per questo la pagina avverte che di norma e' meglio annullare.
+
+**Analisi prodotti**: la lavorazione e' ora una **fila di chip** (Tutte · Sgusciate · Tostate · Granella · Farina · Pasta · Rottame · Scarti) con i **kg accanto a ciascuna**, calcolati sui filtri correnti: rottame e scarti sono sempre visibili anche col filtro predefinito su Sgusciate (prima erano nascosti in una tendina).
+
+**Produzione del periodo — merce importata**: i lotti caricati con l'import iniziale non hanno un movimento ENTRATA, quindi restavano fuori. Ora vengono riconosciuti (nessun ENTRATA sul loro `lotto_id`, nessun `doc_id`) e conteggiati **forfettariamente per annata** (`anno_raccolta`, fallback `anno`) come righe "Import 2025", "Import 2024", fuori dal periodo scelto; spunta "Includi merce importata (N kg)", attiva di default, per includerli o escluderli dai totali. Usano `q_iniz` (kg entrati), non la disponibilita' residua.
+
+**Estratto merce per cliente**: tolto il pulsante Stampa, restano PDF ed Excel (`XBtn` ha ora la prop `noPrint`).
+
+**Campagna predefinita**: al primo accesso il selettore parte da **Tutte le annate** (prima l'anno di campagna corrente); la scelta dell'utente resta salvata in `localStorage` come prima.
+
+**Nessuna modifica al database.**
