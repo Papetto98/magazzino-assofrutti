@@ -473,3 +473,22 @@ SQL dati (non legati al push): `calibri_anteprima.sql` (sola lettura: da svuotar
 **Campagna predefinita**: al primo accesso il selettore parte da **Tutte le annate** (prima l'anno di campagna corrente); la scelta dell'utente resta salvata in `localStorage` come prima.
 
 **Nessuna modifica al database.**
+
+
+---
+
+## 30. ANALISI PRODOTTI RIPROGETTATA · RESOCONTO SPOSTATO · PRODUZIONE PER CAMPAGNA
+
+**Divisione dei ruoli**: **Dashboard** = fotografia e scorciatoie (giacenza, magazzini, tipologie, semilavorati, contratti; interruttore Fisica/Proprieta'); **Analisi prodotti** = approfondimento e stampe. Niente piu' doppioni: il pannello Resoconto e' stato tolto dalla Dashboard, che ora ha il bottone "Analisi e resoconto" (`goPage("analisi")`).
+
+**`ResocontoPanel`** — il blocco resoconto (stati `rCamp/rMag/rTipo/rData/rVista/rBusy`, `repBase`, `rowsFor`, `genPDF`, `genExcel`, JSX) e' stato estratto da DashboardPage a componente autonomo `ResocontoPanel({lotti,allLotti,partner})`, usato nella scheda Resoconto di Analisi. Funzionamento identico (nessuna modifica ai generatori). DashboardPage non riceve piu' `partner`.
+
+**Analisi prodotti — tre schede**:
+1. **Giacenza**: tabella densa (una riga per calibro) al posto delle card: kg, lotti, M.O., C.O., **una sola barra** di distribuzione per fascia e colonna "Oltre 4%"; interruttore **M.O./C.O.** (`met`) per scegliere quale metrica mostra la barra (prima due gruppi da 4 celle affiancati = 8 numeri per riga). Riga cliccabile → dettaglio per magazzino (default), tipo, annata, lavorazione o calibro + riga con M.V./C.V./C.E./RT. Riga Totale in fondo. Chip lavorazione con kg. Export Excel coerente con la metrica scelta.
+2. **Produzione**: ragiona per **campagna** (1 settembre → 31 agosto), non per date libere — e' un'analisi di efficienza della sgusciatura, che e' stagionale. Righe per mese (o settimana) in ordine cronologico, espandibili per magazzino/tipo/calibro/lavorazione; colonne totale, sgusciate, rottame, scarti, **% sgusciate**, M.O., C.O.; totale di campagna. La **merce dell'import** (lotti senza movimento ENTRATA, senza `doc_id`, senza `lotto_padre`) e' datata **01/11 dell'annata** e compare come riga normale con badge IMPORT: niente flag, niente riga informativa, niente selezione di date.
+   In fondo **"Efficienza per stabilimento di sgusciatura"**: per magazzino, kg totali, sgusciate/rottame/scarti con barra di composizione e % sgusciate. La resa sul guscio resta non calcolabile (i kg in guscio non sono nell'app) ed e' detto in una riga sola.
+3. **Resoconto**: il pannello spostato dalla Dashboard.
+
+**Nota tecnica**: aggiunto `Fragment` all'import di React (le tabelle espandibili usano `<Fragment key=…>`).
+
+**Nessuna modifica al database.**
