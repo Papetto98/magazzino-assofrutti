@@ -663,3 +663,16 @@ SQL dati (non legati al push): `calibri_anteprima.sql` (sola lettura: da svuotar
 **Caratteri piu' grandi nelle tabelle**: `Tbl` 13→14,5 px (intestazioni 10→11, sotto-totali 11/12→12,5/13,5) e tabelle di Analisi (TD 13→14,5, TH 10→11). Vale per tutte le pagine che usano `Tbl`, non solo Giacenze.
 
 **Barra di selezione**: era `sticky bottom:0` attaccata alle righe e restava visibile anche con un pannello aperto (informazioni doppie). Ora e' staccata (`sticky bottom:10`, card bianca con bordo accento e ombra) e **scompare quando un pannello laterale e' aperto**; le medie pesate (M.O., C.O., M.V., C.V., C.E., RT) sono mostrate nel pannello, sotto l'elenco dei lotti selezionati, sia in `SidePanel` (assegna/intragruppo) sia in `AzionePanel` (uscita/trasferimento).
+
+
+---
+
+## 32. COLONNE LUNGHE TRONCATE NELLE TABELLE
+
+Problema: la tabella si allargava sul valore piu' lungo della colonna, anche se presente in poche righe — "ROTT.SGUSCIATRICE" (calibro legacy del rottame) e lotti multipli tipo "S102-S103-S104-S105/2025" rubavano spazio a tutte le altre righe.
+
+Soluzione in `Tbl`: le colonne accettano ora `max: <px>`. Il contenuto viene messo in un `div` con `maxWidth`, `overflow:hidden`, `textOverflow:ellipsis`; il valore intero resta nel `title` (tooltip al passaggio del mouse) quando la colonna ha `key`. Vale anche per intestazioni e righe di sottototale.
+
+Larghezze impostate in Giacenze: Lav. 110, Cal. 104, Lotto 150, Imballo 118. Le altre colonne restano automatiche. Nessun dato viene perso: export Excel e stampa non sono toccati.
+
+Nota: i valori di calibro legacy ("ROTT.SGUSCIATRICE" e simili) restano nei dati; `calibri_anteprima.sql` li elenca tra i "da correggere a mano" (vedi §28).
