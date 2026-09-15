@@ -904,116 +904,139 @@ function RicercaPage({lotti}){const[q,setQ]=useState("");const av=lotti.filter(l
 const ISO_WEEK=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dn=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-dn);const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));return{w:Math.ceil(((t-y0)/86400000+1)/7),y:t.getUTCFullYear()}};
 const MESI=["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
 const qCol=v=>v>4?C.r:v>2?C.o:C.g;
-const IMP_DAY=a=>a+"-11-01";
 function AnalisiPage({lotti,allLotti,movimenti,partner,goPage}){
-  const[tab,setTab]=useState("giac");const mob=useIsMobile();
-  const[fT,setFT]=useState("");const[fL,setFL]=useState("SGUSCIATE");const[fM,setFM]=useState("");const[sec,setSec]=useState("magazzino");const[met,setMet]=useState("mo");const[open,setOpen]=useState({});
+  const[tab,setTab]=useState("sg");const mob=useIsMobile();
   const AL=allLotti||lotti;
-  const camps=useMemo(()=>{const a=[...new Set(AL.map(l=>l.anno_raccolta||l.anno).filter(Boolean))].sort((x,y)=>y-x);return a.length?a:[CAMP()]},[AL]);
-  const[pC,setPC]=useState(()=>String(camps[0]||CAMP()));const[pG,setPG]=useState("mese");const[pSec,setPSec]=useState("magazzino");const[pOpen,setPOpen]=useState({});
-  const SECL={magazzino:"Magazzino",desc1:"Tipo",anno_raccolta:"Annata",desc2:"Lavorazione",desc3:"Calibro"};
-  const agg=items=>{const kg=items.reduce((a,l)=>a+l.kg,0);const w=k=>kg>0?items.reduce((a,l)=>a+(l[k]||0)*l.kg,0)/kg:0;const gm=[0,0,0,0],gc=[0,0,0,0];items.forEach(l=>{gm[grp((l.mo||0)*100)]+=l.kg;gc[grp((l.co||0)*100)]+=l.kg});return{kg,n:items.length,mo:w("mo")*100,co:w("co")*100,mv:w("mv")*100,cv:w("cv")*100,ce:w("ce")*100,rt:w("rt")*100,moG:gm,coG:gc}};
-  // ---------- giacenza ----------
-  const lavKg=useMemo(()=>{const o={__ALL:0};lotti.forEach(l=>{if(dsp(l)<=0)return;if(fT&&l.desc1!==fT)return;if(fM&&l.magazzino!==fM)return;o.__ALL+=dsp(l);o[l.desc2]=(o[l.desc2]||0)+dsp(l)});return o},[lotti,fT,fM]);
-  const gi=useMemo(()=>{const base=lotti.filter(l=>dsp(l)>0&&(!fT||l.desc1===fT)&&(!fL||l.desc2===fL)&&(!fM||l.magazzino===fM)).map(l=>({...l,kg:dsp(l)}));
-    const by={};base.forEach(l=>{const c=l.desc3||"(nessuno)";(by[c]=by[c]||[]).push(l)});
-    const rows=Object.entries(by).map(([cal,items])=>{const sub={};items.forEach(l=>{const k=String(l[sec]||"—");(sub[k]=sub[k]||[]).push(l)});
-      return{k:cal,...agg(items),sub:Object.entries(sub).map(([k,v])=>({k,...agg(v)})).sort((a,b)=>b.kg-a.kg)}}).sort((a,b)=>(CAL_ORD[a.k]??99)-(CAL_ORD[b.k]??99));
-    return{rows,tot:agg(base)}},[lotti,fT,fL,fM,sec]);
-  // ---------- produzione di campagna (1 set → 31 ago) ----------
+  const pn=v=>(Number(v)||0).toFixed(2).replace(".",",")+"%";const p1=v=>(Number(v)||0).toFixed(1).replace(".",",")+"%";const kgI=v=>kgD(Math.round(Number(v)||0));
+  const[fT,setFT]=useState("");const[fM,setFM]=useState("");const[fA,setFA]=useState("");const[soglia,setSoglia]=useState("4");const[det,setDet]=useState("magazzino");const[open,setOpen]=useState({});
+  const[pC,setPC]=useState(()=>String(Math.max(2026,CAMP())));const[pG,setPG]=useState("mese");const[pSec,setPSec]=useState("magazzino");const[pOpen,setPOpen]=useState({});
+  const DETL={magazzino:"Magazzino",desc1:"Tipo",anno_raccolta:"Annata",imballo:"Formato"};
+  const SOG=Number(soglia);
+  const agg=items=>{const kg=items.reduce((a,l)=>a+l.kg,0);const w=k=>kg>0?items.reduce((a,l)=>a+(l[k]||0)*l.kg,0)/kg:0;
+    const over=items.filter(l=>(l.mo||0)*100>SOG).reduce((a,l)=>a+l.kg,0);const overC=items.filter(l=>(l.co||0)*100>SOG).reduce((a,l)=>a+l.kg,0);
+    return{kg,n:items.length,mo:w("mo")*100,co:w("co")*100,mv:w("mv")*100,cv:w("cv")*100,ce:w("ce")*100,rt:w("rt")*100,over,overC,mags:[...new Set(items.map(l=>l.magazzino))]}};
+  const base=useMemo(()=>lotti.filter(l=>dsp(l)>0&&(!fT||l.desc1===fT)&&(!fM||l.magazzino===fM)&&(!fA||String(l.anno_raccolta||l.anno)===fA)).map(l=>({...l,kg:dsp(l)})),[lotti,fT,fM,fA]);
+  const anni=useMemo(()=>[...new Set(lotti.map(l=>String(l.anno_raccolta||l.anno||"")).filter(Boolean))].sort((a,b)=>b-a),[lotti]);
+  // gruppi: sgusciato (naturali) e semilavorati
+  const build=(items,lavs,ordLav)=>{const byT={};items.filter(l=>lavs.includes(l.desc2)).forEach(l=>{(byT[l.desc1]=byT[l.desc1]||[]).push(l)});
+    return Object.entries(byT).map(([t,ls])=>{const byR={};ls.forEach(l=>{const k=l.desc2+"|"+(l.desc3||"");(byR[k]=byR[k]||[]).push(l)});
+      const rows=Object.entries(byR).map(([k,v])=>{const[lav,cal]=k.split("|");const sub={};v.forEach(l=>{const s=String(l[det]||"—");(sub[s]=sub[s]||[]).push(l)});
+        return{k:t+"|"+k,lav,cal,...agg(v),sub:Object.entries(sub).map(([s,vv])=>({k:s,...agg(vv)})).sort((a,b)=>b.kg-a.kg)}})
+        .sort((a,b)=>(ordLav.indexOf(a.lav)-ordLav.indexOf(b.lav))||((CAL_ORD[a.cal]??99)-(CAL_ORD[b.cal]??99)));
+      return{tipo:t,...agg(ls),rows}}).sort((a,b)=>(TIPI.indexOf(a.tipo)-TIPI.indexOf(b.tipo)))};
+  const gSg=useMemo(()=>build(base,NAT_LAV,["SGUSCIATE","ROTTAME","SCARTI"]),[base,det,SOG]);
+  const gSe=useMemo(()=>build(base,TRASF,TRASF),[base,det,SOG]);
+  const totSg=useMemo(()=>agg(base.filter(l=>NAT_LAV.includes(l.desc2))),[base,SOG]);
+  const totSe=useMemo(()=>agg(base.filter(l=>TRASF.includes(l.desc2))),[base,SOG]);
+  const lavName=l=>l[0]+l.slice(1).toLowerCase();
+  // ---------- produzione: solo entrate reali di magazzino, dalla campagna 2026 ----------
+  const campsP=useMemo(()=>{const cur=Math.max(2026,CAMP());const a=[];for(let y=cur;y>=2026;y--)a.push(y);return a},[]);
   const prod=useMemo(()=>{const a=Number(pC);const d1=a+"-09-01",d2=(a+1)+"-08-31";
-    const lById={};AL.forEach(l=>{lById[l.id]=l});const conEnt=new Set(movimenti.filter(m=>m.tipo==="ENTRATA").map(m=>m.lotto_id));
-    const fromMov=movimenti.filter(m=>m.tipo==="ENTRATA"&&!String(m.contratto_id||"").startsWith("SPLIT|")).map(m=>{const l=lById[m.lotto_id]||{};return{data:m.data,kg:Number(m.qta||0),magazzino:m.magazzino||l.magazzino,desc1:m.desc1||l.desc1,desc2:m.desc2||l.desc2,desc3:m.desc3||l.desc3,anno_raccolta:l.anno_raccolta||l.anno,mv:l.mv,mo:l.mo,cv:l.cv,co:l.co,ce:l.ce,rt:l.rt,doc:l.doc_id}}).filter(m=>!m.doc);
-    const fromImp=AL.filter(l=>!conEnt.has(l.id)&&!l.doc_id&&!l.lotto_padre).map(l=>({data:IMP_DAY(String(l.anno_raccolta||l.anno||a)),kg:Number(l.q_iniz||0),magazzino:l.magazzino,desc1:l.desc1,desc2:l.desc2,desc3:l.desc3,anno_raccolta:l.anno_raccolta||l.anno,mv:l.mv,mo:l.mo,cv:l.cv,co:l.co,ce:l.ce,rt:l.rt,imp:true}));
-    const all=[...fromMov,...fromImp].filter(m=>m.data>=d1&&m.data<=d2&&NAT_LAV.includes(m.desc2)&&(!fT||m.desc1===fT)&&(!fM||m.magazzino===fM));
+    const lById={};AL.forEach(l=>{lById[l.id]=l});
+    const all=movimenti.filter(m=>m.tipo==="ENTRATA"&&m.data>=d1&&m.data<=d2&&!String(m.contratto_id||"").startsWith("SPLIT|")).map(m=>{const l=lById[m.lotto_id]||{};return{data:m.data,kg:Number(m.qta||0),magazzino:m.magazzino||l.magazzino,desc1:m.desc1||l.desc1,desc2:m.desc2||l.desc2,desc3:m.desc3||l.desc3,anno_raccolta:l.anno_raccolta||l.anno,mv:l.mv,mo:l.mo,cv:l.cv,co:l.co,ce:l.ce,rt:l.rt,doc:l.doc_id}})
+      .filter(m=>!m.doc&&NAT_LAV.includes(m.desc2)&&(!fT||m.desc1===fT)&&(!fM||m.magazzino===fM));
     const key=m=>{const d=new Date(m.data+"T00:00:00");if(pG==="sett"){const{w,y}=ISO_WEEK(d);return{k:y+"-S"+String(w).padStart(2,"0"),l:"Settimana "+w+" · "+y}}return{k:m.data.slice(0,7),l:MESI[d.getMonth()]+" "+d.getFullYear()}};
     const per={};all.forEach(m=>{const{k,l}=key(m);(per[k]=per[k]||{k,l,items:[]}).items.push(m)});
-    const line=items=>{const sg=items.filter(m=>m.desc2==="SGUSCIATE");const ro=items.filter(m=>m.desc2==="ROTTAME").reduce((a,m)=>a+m.kg,0);const sc=items.filter(m=>m.desc2==="SCARTI").reduce((a,m)=>a+m.kg,0);const tot=items.reduce((a,m)=>a+m.kg,0);
-      return{...agg(sg),sgKg:agg(sg).kg,ro,sc,tot,resa:tot>0?agg(sg).kg/tot*100:0,imp:items.some(m=>m.imp)&&items.every(m=>m.imp)}};
-    const rows=Object.values(per).sort((a,b)=>a.k<b.k?-1:1).map(p=>{const sub={};p.items.forEach(m=>{const k=String(m[pSec]||"—");(sub[k]=sub[k]||[]).push(m)});
-      return{k:p.k,l:p.l,...line(p.items),sub:Object.entries(sub).map(([k,v])=>({k,...line(v)})).sort((a,b)=>b.tot-a.tot)}});
+    const line=items=>{const sg=items.filter(m=>m.desc2==="SGUSCIATE");const ro=items.filter(m=>m.desc2==="ROTTAME").reduce((a,m)=>a+m.kg,0);const sc=items.filter(m=>m.desc2==="SCARTI").reduce((a,m)=>a+m.kg,0);const tot=items.reduce((a,m)=>a+m.kg,0);const A=agg(sg);
+      return{...A,sgKg:A.kg,ro,sc,tot,quota:tot>0?A.kg/tot*100:0}};
+    const rows=Object.values(per).sort((x,y)=>x.k<y.k?-1:1).map(p=>{const sub={};p.items.forEach(m=>{const k=String(m[pSec]||"—");(sub[k]=sub[k]||[]).push(m)});
+      return{k:p.k,l:p.l,...line(p.items),sub:Object.entries(sub).map(([k,v])=>({k,...line(v)})).sort((x,y)=>y.tot-x.tot)}});
     const byMag={};all.forEach(m=>{const k=m.magazzino||"—";(byMag[k]=byMag[k]||[]).push(m)});
-    const mags=Object.entries(byMag).map(([k,v])=>({k,...line(v)})).sort((a,b)=>b.tot-a.tot);
-    return{rows,mags,tot:line(all),n:all.length,d1,d2}},[movimenti,AL,pC,pG,pSec,fT,fM]);
+    return{rows,mags:Object.entries(byMag).map(([k,v])=>({k,...line(v)})).sort((x,y)=>y.tot-x.tot),tot:line(all),n:all.length}},[movimenti,AL,pC,pG,pSec,fT,fM,SOG]);
   // ---------- pezzi comuni ----------
-  const Bar=({g,kg,h})=><div style={{display:"flex",height:h||14,borderRadius:3,overflow:"hidden",background:C.bd+"55",minWidth:110}} title={GRP.map((x,i)=>x.l+": "+kgD(g[i])+" kg").join(" · ")}>{g.map((v,i)=>v>0?<div key={i} style={{width:(v/(kg||1)*100)+"%",background:GRP[i].c}}/>:null)}</div>;
   const Num=({v,b,c})=><span style={{fontFamily:"'DM Mono',monospace",fontWeight:b?800:600,color:c||C.t}}>{v}</span>;
   const TH=({children,w,l})=><th style={{fontSize:10,color:C.tD,fontWeight:700,letterSpacing:.7,textTransform:"uppercase",textAlign:l?"left":"right",padding:"6px 8px",borderBottom:"1px solid "+C.bd,width:w,whiteSpace:"nowrap"}}>{children}</th>;
-  const TD=({children,l,s})=><td style={{padding:"8px",textAlign:l?"left":"right",borderBottom:"1px solid "+C.bd+"88",fontSize:s||13}}>{children}</td>;
+  const TD=({children,l,s,c})=><td style={{padding:"7px 8px",textAlign:l?"left":"right",borderBottom:"1px solid "+C.bd+"88",fontSize:s||13,color:c}}>{children}</td>;
   const K=({l,v,c,s})=><div style={{background:C.zebra,border:"1px solid "+C.bd,borderRadius:10,padding:"10px 14px",flex:"1 1 130px"}}><div style={{fontSize:10,color:C.tD,fontWeight:700,letterSpacing:.8,textTransform:"uppercase"}}>{l}</div><div style={{fontSize:20,fontWeight:800,fontFamily:"'DM Mono',monospace",color:c||C.t}}>{v}</div>{s&&<div style={{fontSize:11,color:C.tP}}>{s}</div>}</div>;
-  const legenda=<div style={{display:"flex",gap:12,flexWrap:"wrap",fontSize:11,color:C.tP,marginTop:8}}>{GRP.map((g,i)=><span key={i}><span style={{display:"inline-block",width:9,height:9,background:g.c,borderRadius:2,marginRight:4}}/>{g.l}</span>)}<span>· clicca una riga per il dettaglio</span></div>;
-  const M=met==="mo"?"moG":"coG";const mLbl=met==="mo"?"M.O.":"C.O.";
-  const xlG=gi.rows.map(r=>({cal:r.k,kg:Math.round(r.kg),n:r.n,mo:r.mo.toFixed(2),co:r.co.toFixed(2),mv:r.mv.toFixed(2),cv:r.cv.toFixed(2),ce:r.ce.toFixed(2),rt:r.rt.toFixed(2),g0:Math.round(r[M][0]),g1:Math.round(r[M][1]),g2:Math.round(r[M][2]),g3:Math.round(r[M][3])}));
-  const XG=[{key:"cal",label:"Calibro"},{key:"kg",label:"Kg"},{key:"n",label:"Lotti"},{key:"mo",label:"M.O.%"},{key:"co",label:"C.O.%"},{key:"mv",label:"M.V.%"},{key:"cv",label:"C.V.%"},{key:"ce",label:"C.E.%"},{key:"rt",label:"RT%"},{key:"g0",label:mLbl+" 0-2% kg"},{key:"g1",label:mLbl+" 2-4% kg"},{key:"g2",label:mLbl+" 4-6% kg"},{key:"g3",label:mLbl+" >6% kg"}];
-  const xlP=[...prod.rows.map(r=>({per:r.l,tot:Math.round(r.tot),sg:Math.round(r.sgKg),ro:Math.round(r.ro),sc:Math.round(r.sc),resa:r.resa.toFixed(1),mo:r.mo.toFixed(2),co:r.co.toFixed(2)})),...prod.mags.map(r=>({per:"Magazzino "+r.k,tot:Math.round(r.tot),sg:Math.round(r.sgKg),ro:Math.round(r.ro),sc:Math.round(r.sc),resa:r.resa.toFixed(1),mo:r.mo.toFixed(2),co:r.co.toFixed(2)}))];
-  const XP=[{key:"per",label:"Periodo"},{key:"tot",label:"Totale kg"},{key:"sg",label:"Sgusciate kg"},{key:"ro",label:"Rottame kg"},{key:"sc",label:"Scarti kg"},{key:"resa",label:"% sgusciate"},{key:"mo",label:"M.O.%"},{key:"co",label:"C.O.%"}];
+  const filtri=<div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"flex-end"}} data-no-print>
+    <Sel label="Tipo" value={fT} onChange={setFT} active={!!fT} options={[{value:"",label:"Tutti"},...TIPI.map(v=>({value:v,label:v}))]}/>
+    <Sel label="Magazzino" value={fM} onChange={setFM} active={!!fM} options={[{value:"",label:"Tutti"},...MAGS.map(v=>({value:v,label:v}))]}/>
+    <Sel label="Annata" value={fA} onChange={setFA} active={!!fA} options={[{value:"",label:"Tutte"},...anni.map(v=>({value:v,label:v}))]}/>
+    <Sel label="Dettaglio per" value={det} onChange={setDet} options={Object.entries(DETL).map(([v,l])=>({value:v,label:l}))}/>
+    <Sel label="Soglia qualità" value={soglia} onChange={setSoglia} options={["2","4","6"].map(v=>({value:v,label:"oltre "+v+"%"}))}/></div>;
+  const xlSg=[];gSg.forEach(t=>t.rows.forEach(r=>xlSg.push({tipo:t.tipo,lav:lavName(r.lav),cal:r.cal||"",kg:Math.round(r.kg),n:r.n,mo:r.mo.toFixed(2),co:r.co.toFixed(2),mv:r.mv.toFixed(2),cv:r.cv.toFixed(2),ce:r.ce.toFixed(2),rt:r.rt.toFixed(2),over:Math.round(r.over)})));
+  const XSG=[{key:"tipo",label:"Tipo"},{key:"lav",label:"Lavorazione"},{key:"cal",label:"Calibro"},{key:"kg",label:"Kg"},{key:"n",label:"Lotti"},{key:"mo",label:"M.O.%"},{key:"co",label:"C.O.%"},{key:"mv",label:"M.V.%"},{key:"cv",label:"C.V.%"},{key:"ce",label:"C.E.%"},{key:"rt",label:"RT%"},{key:"over",label:"Kg oltre "+SOG+"% M.O."}];
+  const xlSe=[];gSe.forEach(t=>t.rows.forEach(r=>xlSe.push({tipo:t.tipo,prod:lavName(r.lav),cal:r.cal||"",kg:Math.round(r.kg),n:r.n,mag:r.mags.join(", "),mo:r.mo.toFixed(2),co:r.co.toFixed(2)})));
+  const XSE=[{key:"tipo",label:"Tipo"},{key:"prod",label:"Prodotto"},{key:"cal",label:"Calibro/variante"},{key:"kg",label:"Kg"},{key:"n",label:"Lotti"},{key:"mag",label:"Magazzini"},{key:"mo",label:"M.O.%"},{key:"co",label:"C.O.%"}];
+  const xlP=[...prod.rows.map(r=>({per:r.l,tot:Math.round(r.tot),sg:Math.round(r.sgKg),ro:Math.round(r.ro),sc:Math.round(r.sc),quota:r.quota.toFixed(1),mo:r.mo.toFixed(2),co:r.co.toFixed(2)})),...prod.mags.map(r=>({per:"Magazzino "+r.k,tot:Math.round(r.tot),sg:Math.round(r.sgKg),ro:Math.round(r.ro),sc:Math.round(r.sc),quota:r.quota.toFixed(1),mo:r.mo.toFixed(2),co:r.co.toFixed(2)}))];
+  const XP=[{key:"per",label:"Periodo"},{key:"tot",label:"Totale kg"},{key:"sg",label:"Sgusciate kg"},{key:"ro",label:"Rottame kg"},{key:"sc",label:"Scarti kg"},{key:"quota",label:"% sgusciate"},{key:"mo",label:"M.O.%"},{key:"co",label:"C.O.%"}];
+  // ---------- tabella sgusciato ----------
+  const tabSg=<GCard style={{padding:mob?12:18,overflowX:"auto"}}>
+    {gSg.length===0?<div style={{color:C.tM,fontSize:13}}>Nessun lotto con questi filtri.</div>:
+    <table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?760:0}}><thead><tr><TH l w={200}>Prodotto</TH><TH w={90}>Kg</TH><TH w={50}>Lotti</TH><TH w={62}>M.O.</TH><TH w={62}>C.O.</TH><TH w={62}>M.V.</TH><TH w={62}>C.V.</TH><TH w={62}>C.E.</TH><TH w={56}>RT</TH><TH w={110}>{"Oltre "+SOG+"% M.O."}</TH></tr></thead><tbody>
+      {gSg.map(t=><Fragment key={t.tipo}>
+        <tr style={{background:C.acc+"14"}}><TD l><b style={{color:C.acc,fontSize:13,letterSpacing:.3}}>{t.tipo}</b></TD><TD><Num v={kgI(t.kg)} b/></TD><TD><span style={{color:C.tP,fontSize:12}}>{t.n}</span></TD><TD><Num v={pn(t.mo)} b c={qCol(t.mo)}/></TD><TD><Num v={pn(t.co)} b c={qCol(t.co)}/></TD><TD><Num v={pn(t.mv)}/></TD><TD><Num v={pn(t.cv)}/></TD><TD><Num v={pn(t.ce)}/></TD><TD><Num v={pn(t.rt)}/></TD><TD><Num v={kgI(t.over)+(t.kg>0?" · "+Math.round(t.over/t.kg*100)+"%":"")} b c={t.over>0?C.r:C.tM}/></TD></tr>
+        {t.rows.map(r=>{const o=open[r.k];return <Fragment key={r.k}>
+          <tr onClick={()=>setOpen(x=>({...x,[r.k]:!x[r.k]}))} style={{cursor:"pointer",background:o?C.zebra:"transparent"}}>
+            <TD l><span style={{paddingLeft:14}}>{lavName(r.lav)}{r.cal?" "+r.cal:""}</span> <span style={{color:C.tM,fontSize:11}}>{o?"▲":"▼"}</span></TD>
+            <TD><Num v={kgI(r.kg)}/></TD><TD><span style={{color:C.tP,fontSize:12}}>{r.n}</span></TD>
+            <TD><Num v={pn(r.mo)} c={qCol(r.mo)}/></TD><TD><Num v={pn(r.co)} c={qCol(r.co)}/></TD><TD><Num v={pn(r.mv)}/></TD><TD><Num v={pn(r.cv)}/></TD><TD><Num v={pn(r.ce)}/></TD><TD><Num v={pn(r.rt)}/></TD>
+            <TD><Num v={r.over>0?kgI(r.over)+" · "+Math.round(r.over/r.kg*100)+"%":"—"} c={r.over>0?C.r:C.tM}/></TD></tr>
+          {o&&r.sub.map(x=><tr key={r.k+x.k} style={{background:C.zebra}}><TD l s={12}><span style={{paddingLeft:30,color:C.tD}}>{x.k}</span></TD><TD s={12}><Num v={kgI(x.kg)}/></TD><TD s={12}><span style={{color:C.tP,fontSize:11}}>{x.n}</span></TD><TD s={12}><Num v={pn(x.mo)} c={qCol(x.mo)}/></TD><TD s={12}><Num v={pn(x.co)} c={qCol(x.co)}/></TD><TD s={12}><Num v={pn(x.mv)}/></TD><TD s={12}><Num v={pn(x.cv)}/></TD><TD s={12}><Num v={pn(x.ce)}/></TD><TD s={12}><Num v={pn(x.rt)}/></TD><TD s={12}><Num v={x.over>0?kgI(x.over):"—"} c={x.over>0?C.r:C.tM}/></TD></tr>)}
+        </Fragment>})}</Fragment>)}
+      <tr style={{borderTop:"2px solid "+C.bd}}><TD l><b>Totale sgusciato</b></TD><TD><Num v={kgI(totSg.kg)} b/></TD><TD><span style={{color:C.tP,fontSize:12}}>{totSg.n}</span></TD><TD><Num v={pn(totSg.mo)} b c={qCol(totSg.mo)}/></TD><TD><Num v={pn(totSg.co)} b c={qCol(totSg.co)}/></TD><TD><Num v={pn(totSg.mv)}/></TD><TD><Num v={pn(totSg.cv)}/></TD><TD><Num v={pn(totSg.ce)}/></TD><TD><Num v={pn(totSg.rt)}/></TD><TD><Num v={kgI(totSg.over)} b c={C.r}/></TD></tr>
+    </tbody></table>}
+    <div style={{fontSize:11,color:C.tM,marginTop:8}}>Sgusciate, rottame e scarti. Clicca una riga per il dettaglio per {String(DETL[det]).toLowerCase()}. "Oltre {SOG}% M.O." sono i kg dei lotti che superano la soglia.</div>
+  </GCard>;
+  // ---------- tabella semilavorati ----------
+  const tabSe=<GCard style={{padding:mob?12:18,overflowX:"auto"}}>
+    {gSe.length===0?<div style={{color:C.tM,fontSize:13}}>Nessun semilavorato in giacenza con questi filtri.</div>:
+    <table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?620:0}}><thead><tr><TH l w={220}>Prodotto</TH><TH w={90}>Kg</TH><TH w={50}>Lotti</TH><TH l w={180}>Magazzini</TH><TH w={62}>M.O.</TH><TH w={62}>C.O.</TH></tr></thead><tbody>
+      {gSe.map(t=><Fragment key={t.tipo}>
+        <tr style={{background:C.acc+"14"}}><TD l><b style={{color:C.acc,fontSize:13}}>{t.tipo}</b></TD><TD><Num v={kgI(t.kg)} b/></TD><TD><span style={{color:C.tP,fontSize:12}}>{t.n}</span></TD><TD l s={12}><span style={{color:C.tD}}>{t.mags.join(", ")}</span></TD><TD><Num v={t.mo>0?pn(t.mo):"—"} c={qCol(t.mo)}/></TD><TD><Num v={t.co>0?pn(t.co):"—"} c={qCol(t.co)}/></TD></tr>
+        {t.rows.map(r=>{const o=open[r.k];return <Fragment key={r.k}>
+          <tr onClick={()=>setOpen(x=>({...x,[r.k]:!x[r.k]}))} style={{cursor:"pointer",background:o?C.zebra:"transparent"}}>
+            <TD l><span style={{paddingLeft:14}}>{lavName(r.lav)}{r.cal?" · "+r.cal:""}</span> <span style={{color:C.tM,fontSize:11}}>{o?"▲":"▼"}</span></TD>
+            <TD><Num v={kgI(r.kg)}/></TD><TD><span style={{color:C.tP,fontSize:12}}>{r.n}</span></TD><TD l s={12}><span style={{color:C.tD}}>{r.mags.join(", ")}</span></TD>
+            <TD><Num v={r.mo>0?pn(r.mo):"—"} c={qCol(r.mo)}/></TD><TD><Num v={r.co>0?pn(r.co):"—"} c={qCol(r.co)}/></TD></tr>
+          {o&&r.sub.map(x=><tr key={r.k+x.k} style={{background:C.zebra}}><TD l s={12}><span style={{paddingLeft:30,color:C.tD}}>{x.k}</span></TD><TD s={12}><Num v={kgI(x.kg)}/></TD><TD s={12}><span style={{color:C.tP,fontSize:11}}>{x.n}</span></TD><TD l s={12}><span style={{color:C.tP}}>{x.mags.join(", ")}</span></TD><TD s={12}><Num v={x.mo>0?pn(x.mo):"—"}/></TD><TD s={12}><Num v={x.co>0?pn(x.co):"—"}/></TD></tr>)}
+        </Fragment>})}</Fragment>)}
+      <tr style={{borderTop:"2px solid "+C.bd}}><TD l><b>Totale semilavorati</b></TD><TD><Num v={kgI(totSe.kg)} b/></TD><TD><span style={{color:C.tP,fontSize:12}}>{totSe.n}</span></TD><TD l/><TD/><TD/></tr>
+    </tbody></table>}
+    <div style={{fontSize:11,color:C.tM,marginTop:8}}>Tostate, granella, farina e pasta. Il formato della confezione è nel dettaglio (scegli "Formato" in Dettaglio per).</div>
+  </GCard>;
   return <div>
-    <div style={{marginBottom:14}}><h1 style={{fontSize:28,fontWeight:900,color:C.t,margin:0,fontFamily:"'Playfair Display',serif"}}>Analisi prodotti</h1><p style={{color:C.tM,margin:"4px 0 0",fontSize:13}}>Qualità della giacenza, efficienza della sgusciatura e resoconti da stampare. Le medie sono sempre pesate sui kg.</p></div>
-    <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}} data-no-print>{[["giac","Giacenza"],["prod","Produzione"],["rep","Resoconto"]].map(([k,l])=><TypeChip key={k} label={l} active={tab===k} color={C.acc} onClick={()=>setTab(k)}/>)}</div>
+    <div style={{marginBottom:14}}><h1 style={{fontSize:28,fontWeight:900,color:C.t,margin:0,fontFamily:"'Playfair Display',serif"}}>Analisi prodotti</h1><p style={{color:C.tM,margin:"4px 0 0",fontSize:13}}>Giacenza per prodotto, produzione della campagna e resoconti da stampare. Le medie sono sempre pesate sui kg.</p></div>
+    <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}} data-no-print>{[["sg","Sgusciato"],["se","Semilavorati"],["prod","Produzione"],["rep","Resoconto"]].map(([k,l])=><TypeChip key={k} label={l} active={tab===k} color={C.acc} onClick={()=>setTab(k)}/>)}</div>
     {tab==="rep"&&<ResocontoPanel lotti={lotti} allLotti={AL} partner={partner}/>}
-    {tab==="giac"&&<>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:10}} data-no-print><span style={{fontSize:10,color:C.tD,fontWeight:700,letterSpacing:.8,textTransform:"uppercase"}}>Lavorazione</span>{[["","Tutte"],...LAVS.map(v=>[v,v[0]+v.slice(1).toLowerCase()])].map(([v,l])=>{const k=lavKg[v||"__ALL"]||0;return <TypeChip key={v||"all"} label={l+(k>0?" · "+kgD(k):"")} active={fL===v} color={C.acc} onClick={()=>setFL(v)}/>})}</div>
-      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"flex-end"}} data-no-print>
-        <Sel label="Tipo" value={fT} onChange={setFT} active={!!fT} options={[{value:"",label:"Tutti"},...TIPI.map(v=>({value:v,label:v}))]}/>
-        <Sel label="Magazzino" value={fM} onChange={setFM} active={!!fM} options={[{value:"",label:"Tutti"},...MAGS.map(v=>({value:v,label:v}))]}/>
-        <Sel label="Dettaglio per" value={sec} onChange={setSec} options={Object.entries(SECL).map(([v,l])=>({value:v,label:l}))}/>
-        <div style={{display:"flex",flexDirection:"column",gap:4}}><span style={{fontSize:10,color:C.tD,textTransform:"uppercase",letterSpacing:.8,fontWeight:600}}>Fasce</span><Seg value={met} onChange={setMet} options={[{value:"mo",label:"M.O."},{value:"co",label:"C.O."}]}/></div>
-        <div style={{flex:1}}/><XBtn data={xlG} cols={XG} name="analisi_giacenza"/></div>
-      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}><K l="Giacenza" v={kgD(gi.tot.kg)+" kg"} s={gi.tot.n+" lotti"}/><K l="M.O. medio" v={gi.tot.mo.toFixed(2)+"%"} c={qCol(gi.tot.mo)}/><K l="C.O. medio" v={gi.tot.co.toFixed(2)+"%"} c={qCol(gi.tot.co)}/><K l={"Oltre il 4% di "+mLbl} v={kgD(gi.tot[M][2]+gi.tot[M][3])+" kg"} c={C.r} s={gi.tot.kg>0?Math.round((gi.tot[M][2]+gi.tot[M][3])/gi.tot.kg*100)+"% della giacenza":""}/></div>
-      <GCard style={{padding:mob?12:18,overflowX:"auto"}}>
-        {gi.rows.length===0?<div style={{color:C.tM,fontSize:13}}>Nessun lotto disponibile con questi filtri.</div>:<>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?560:0}}><thead><tr><TH l w={110}>Calibro</TH><TH w={90}>Kg</TH><TH w={54}>Lotti</TH><TH w={62}>M.O.</TH><TH w={62}>C.O.</TH><TH l>{"Fasce "+mLbl+" (% dei kg)"}</TH><TH w={70}>Oltre 4%</TH></tr></thead><tbody>
-          {gi.rows.map(r=>{const o=open[r.k];const over=r[M][2]+r[M][3];return <Fragment key={r.k}>
-            <tr onClick={()=>setOpen(x=>({...x,[r.k]:!x[r.k]}))} style={{cursor:"pointer",background:o?C.zebra:"transparent"}}>
-              <TD l><b style={{color:C.acc}}>{r.k}</b> <span style={{color:C.tM,fontSize:11}}>{o?"▲":"▼"}</span></TD>
-              <TD><Num v={kgD(r.kg)} b/></TD><TD><span style={{color:C.tP,fontSize:12}}>{r.n}</span></TD>
-              <TD><Num v={r.mo.toFixed(2)+"%"} c={qCol(r.mo)}/></TD><TD><Num v={r.co.toFixed(2)+"%"} c={qCol(r.co)}/></TD>
-              <TD l><Bar g={r[M]} kg={r.kg}/></TD>
-              <TD><Num v={r.kg>0?Math.round(over/r.kg*100)+"%":"—"} c={over/r.kg>.25?C.r:C.tD}/></TD></tr>
-            {o&&r.sub.map(x=><tr key={x.k} style={{background:C.zebra}}>
-              <TD l s={12}><span style={{paddingLeft:14,color:C.tD}}>{x.k}</span></TD><TD s={12}><Num v={kgD(x.kg)}/></TD><TD s={12}><span style={{color:C.tP,fontSize:11}}>{x.n}</span></TD>
-              <TD s={12}><Num v={x.mo.toFixed(2)+"%"} c={qCol(x.mo)}/></TD><TD s={12}><Num v={x.co.toFixed(2)+"%"} c={qCol(x.co)}/></TD>
-              <TD l><Bar g={x[M]} kg={x.kg} h={10}/></TD><TD s={12}><Num v={x.kg>0?Math.round((x[M][2]+x[M][3])/x.kg*100)+"%":"—"}/></TD></tr>)}
-            {o&&<tr style={{background:C.zebra}}><TD l s={11}><span style={{paddingLeft:14,color:C.tM}}>M.V. {r.mv.toFixed(2)}% · C.V. {r.cv.toFixed(2)}% · C.E. {r.ce.toFixed(2)}% · RT {r.rt.toFixed(2)}%</span></TD><TD s={11}/><TD s={11}/><TD s={11}/><TD s={11}/><TD s={11}/><TD s={11}/></tr>}
-          </Fragment>})}
-          <tr style={{borderTop:"2px solid "+C.bd}}><TD l><b>Totale</b></TD><TD><Num v={kgD(gi.tot.kg)} b/></TD><TD><span style={{color:C.tP,fontSize:12}}>{gi.tot.n}</span></TD><TD><Num v={gi.tot.mo.toFixed(2)+"%"} b c={qCol(gi.tot.mo)}/></TD><TD><Num v={gi.tot.co.toFixed(2)+"%"} b c={qCol(gi.tot.co)}/></TD><TD l><Bar g={gi.tot[M]} kg={gi.tot.kg}/></TD><TD><Num v={gi.tot.kg>0?Math.round((gi.tot[M][2]+gi.tot[M][3])/gi.tot.kg*100)+"%":"—"} b c={C.r}/></TD></tr>
-        </tbody></table>{legenda}</>}
-      </GCard></>}
+    {(tab==="sg"||tab==="se")&&<>
+      {filtri}
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
+        {tab==="sg"?<><K l="Sgusciato in giacenza" v={kgI(totSg.kg)+" kg"} s={totSg.n+" lotti"}/><K l="M.O. medio" v={pn(totSg.mo)} c={qCol(totSg.mo)}/><K l="C.O. medio" v={pn(totSg.co)} c={qCol(totSg.co)}/><K l={"Oltre "+SOG+"% di M.O."} v={kgI(totSg.over)+" kg"} c={C.r} s={totSg.kg>0?Math.round(totSg.over/totSg.kg*100)+"% del totale":""}/><K l={"Oltre "+SOG+"% di C.O."} v={kgI(totSg.overC)+" kg"} c={C.r} s={totSg.kg>0?Math.round(totSg.overC/totSg.kg*100)+"% del totale":""}/></>
+        :<><K l="Semilavorati in giacenza" v={kgI(totSe.kg)+" kg"} s={totSe.n+" lotti"}/>{gSe.map(t=><K key={t.tipo} l={t.tipo} v={kgI(t.kg)+" kg"} s={t.n+" lotti"}/>)}</>}
+        <div style={{display:"flex",alignItems:"flex-end"}}><XBtn data={tab==="sg"?xlSg:xlSe} cols={tab==="sg"?XSG:XSE} name={tab==="sg"?"giacenza_sgusciato":"giacenza_semilavorati"}/></div></div>
+      {tab==="sg"?tabSg:tabSe}</>}
     {tab==="prod"&&<>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"flex-end"}} data-no-print>
-        <Sel label="Campagna" value={pC} onChange={setPC} active options={camps.map(a=>({value:String(a),label:String(a)+" (set "+a+" – ago "+(a+1)+")"}))}/>
+        <Sel label="Campagna" value={pC} onChange={setPC} active options={campsP.map(a=>({value:String(a),label:String(a)+" (set "+a+" – ago "+(a+1)+")"}))}/>
         <div style={{display:"flex",flexDirection:"column",gap:4}}><span style={{fontSize:10,color:C.tD,textTransform:"uppercase",letterSpacing:.8,fontWeight:600}}>Periodo</span><Seg value={pG} onChange={setPG} options={[{value:"mese",label:"Mese"},{value:"sett",label:"Settimana"}]}/></div>
         <Sel label="Dettaglio per" value={pSec} onChange={setPSec} options={[{value:"magazzino",label:"Magazzino"},{value:"desc1",label:"Tipo"},{value:"desc3",label:"Calibro"},{value:"desc2",label:"Lavorazione"}]}/>
         <Sel label="Tipo" value={fT} onChange={setFT} active={!!fT} options={[{value:"",label:"Tutti"},...TIPI.map(v=>({value:v,label:v}))]}/>
         <Sel label="Magazzino" value={fM} onChange={setFM} active={!!fM} options={[{value:"",label:"Tutti"},...MAGS.map(v=>({value:v,label:v}))]}/>
         <div style={{flex:1}}/><XBtn data={xlP} cols={XP} name={"produzione_"+pC}/></div>
-      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}><K l="Prodotto in campagna" v={kgD(prod.tot.tot)+" kg"} s={prod.n+" entrate"}/><K l="Sgusciate" v={kgD(prod.tot.sgKg)+" kg"} c={C.acc} s={prod.tot.resa.toFixed(1)+"% del prodotto"}/><K l="Rottame" v={kgD(prod.tot.ro)+" kg"} c={C.oT} s={prod.tot.tot>0?(prod.tot.ro/prod.tot.tot*100).toFixed(1)+"%":""}/><K l="Scarti" v={kgD(prod.tot.sc)+" kg"} c={C.r} s={prod.tot.tot>0?(prod.tot.sc/prod.tot.tot*100).toFixed(1)+"%":""}/><K l="M.O. medio sgusciate" v={prod.tot.mo.toFixed(2)+"%"} c={qCol(prod.tot.mo)} s={"C.O. "+prod.tot.co.toFixed(2)+"%"}/></div>
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}><K l="Prodotto in campagna" v={kgI(prod.tot.tot)+" kg"} s={prod.n+" entrate"}/><K l="Sgusciate" v={kgI(prod.tot.sgKg)+" kg"} c={C.acc} s={p1(prod.tot.quota)+" del prodotto"}/><K l="Rottame" v={kgI(prod.tot.ro)+" kg"} c={C.oT} s={prod.tot.tot>0?p1(prod.tot.ro/prod.tot.tot*100):""}/><K l="Scarti" v={kgI(prod.tot.sc)+" kg"} c={C.r} s={prod.tot.tot>0?p1(prod.tot.sc/prod.tot.tot*100):""}/><K l="M.O. medio sgusciate" v={pn(prod.tot.mo)} c={qCol(prod.tot.mo)} s={"C.O. "+pn(prod.tot.co)}/></div>
       <GCard style={{padding:mob?12:18,marginBottom:16,overflowX:"auto"}}>
-        {prod.rows.length===0?<div style={{color:C.tM,fontSize:13}}>Nessuna produzione registrata nella campagna {pC}.</div>:<>
+        {prod.rows.length===0?<div style={{color:C.tM,fontSize:13}}>Nessuna entrata registrata nella campagna {pC}. La produzione conta solo le entrate di magazzino fatte con l'app.</div>:
         <table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?600:0}}><thead><tr><TH l w={150}>Periodo</TH><TH w={90}>Totale</TH><TH w={90}>Sgusciate</TH><TH w={80}>Rottame</TH><TH w={70}>Scarti</TH><TH w={70}>% sgusc.</TH><TH w={62}>M.O.</TH><TH w={62}>C.O.</TH></tr></thead><tbody>
           {prod.rows.map(r=>{const o=pOpen[r.k];return <Fragment key={r.k}>
             <tr onClick={()=>setPOpen(x=>({...x,[r.k]:!x[r.k]}))} style={{cursor:"pointer",background:o?C.zebra:"transparent"}}>
-              <TD l><b>{r.l}</b> {r.imp&&<Badge color={C.b} bg={C.bD}>IMPORT</Badge>} <span style={{color:C.tM,fontSize:11}}>{o?"▲":"▼"}</span></TD>
-              <TD><Num v={kgD(r.tot)} b/></TD><TD><Num v={kgD(r.sgKg)}/></TD><TD><Num v={r.ro?kgD(r.ro):"—"} c={C.oT}/></TD><TD><Num v={r.sc?kgD(r.sc):"—"} c={C.r}/></TD>
-              <TD><Num v={r.resa.toFixed(1)+"%"}/></TD><TD><Num v={r.sgKg>0?r.mo.toFixed(2)+"%":"—"} c={qCol(r.mo)}/></TD><TD><Num v={r.sgKg>0?r.co.toFixed(2)+"%":"—"} c={qCol(r.co)}/></TD></tr>
-            {o&&r.sub.map(x=><tr key={x.k} style={{background:C.zebra}}><TD l s={12}><span style={{paddingLeft:14,color:C.tD}}>{x.k}</span></TD><TD s={12}><Num v={kgD(x.tot)}/></TD><TD s={12}><Num v={kgD(x.sgKg)}/></TD><TD s={12}><Num v={x.ro?kgD(x.ro):"—"} c={C.oT}/></TD><TD s={12}><Num v={x.sc?kgD(x.sc):"—"} c={C.r}/></TD><TD s={12}><Num v={x.resa.toFixed(1)+"%"}/></TD><TD s={12}><Num v={x.sgKg>0?x.mo.toFixed(2)+"%":"—"} c={qCol(x.mo)}/></TD><TD s={12}><Num v={x.sgKg>0?x.co.toFixed(2)+"%":"—"} c={qCol(x.co)}/></TD></tr>)}
+              <TD l><b>{r.l}</b> <span style={{color:C.tM,fontSize:11}}>{o?"▲":"▼"}</span></TD>
+              <TD><Num v={kgI(r.tot)} b/></TD><TD><Num v={kgI(r.sgKg)}/></TD><TD><Num v={r.ro?kgI(r.ro):"—"} c={C.oT}/></TD><TD><Num v={r.sc?kgI(r.sc):"—"} c={C.r}/></TD>
+              <TD><Num v={p1(r.quota)}/></TD><TD><Num v={r.sgKg>0?pn(r.mo):"—"} c={qCol(r.mo)}/></TD><TD><Num v={r.sgKg>0?pn(r.co):"—"} c={qCol(r.co)}/></TD></tr>
+            {o&&r.sub.map(x=><tr key={r.k+x.k} style={{background:C.zebra}}><TD l s={12}><span style={{paddingLeft:14,color:C.tD}}>{x.k}</span></TD><TD s={12}><Num v={kgI(x.tot)}/></TD><TD s={12}><Num v={kgI(x.sgKg)}/></TD><TD s={12}><Num v={x.ro?kgI(x.ro):"—"} c={C.oT}/></TD><TD s={12}><Num v={x.sc?kgI(x.sc):"—"} c={C.r}/></TD><TD s={12}><Num v={p1(x.quota)}/></TD><TD s={12}><Num v={x.sgKg>0?pn(x.mo):"—"} c={qCol(x.mo)}/></TD><TD s={12}><Num v={x.sgKg>0?pn(x.co):"—"} c={qCol(x.co)}/></TD></tr>)}
           </Fragment>})}
-          <tr style={{borderTop:"2px solid "+C.bd}}><TD l><b>Totale campagna {pC}</b></TD><TD><Num v={kgD(prod.tot.tot)} b/></TD><TD><Num v={kgD(prod.tot.sgKg)} b/></TD><TD><Num v={kgD(prod.tot.ro)} c={C.oT}/></TD><TD><Num v={kgD(prod.tot.sc)} c={C.r}/></TD><TD><Num v={prod.tot.resa.toFixed(1)+"%"} b/></TD><TD><Num v={prod.tot.mo.toFixed(2)+"%"} b c={qCol(prod.tot.mo)}/></TD><TD><Num v={prod.tot.co.toFixed(2)+"%"} b c={qCol(prod.tot.co)}/></TD></tr>
-        </tbody></table></>}
+          <tr style={{borderTop:"2px solid "+C.bd}}><TD l><b>Totale campagna {pC}</b></TD><TD><Num v={kgI(prod.tot.tot)} b/></TD><TD><Num v={kgI(prod.tot.sgKg)} b/></TD><TD><Num v={kgI(prod.tot.ro)} c={C.oT}/></TD><TD><Num v={kgI(prod.tot.sc)} c={C.r}/></TD><TD><Num v={p1(prod.tot.quota)} b/></TD><TD><Num v={pn(prod.tot.mo)} b c={qCol(prod.tot.mo)}/></TD><TD><Num v={pn(prod.tot.co)} b c={qCol(prod.tot.co)}/></TD></tr>
+        </tbody></table>}
       </GCard>
       {prod.mags.length>0&&<GCard style={{padding:mob?12:18,overflowX:"auto"}}>
-        <div style={{fontSize:13,fontWeight:800,color:C.acc,marginBottom:4}}>Efficienza per stabilimento di sgusciatura</div>
-        <div style={{fontSize:11,color:C.tM,marginBottom:10}}>Quanto di ogni 100 kg prodotti esce come sgusciato, rottame o scarto. La resa sul guscio non è calcolabile: i kg in guscio lavorati non sono registrati nell'app.</div>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?520:0}}><thead><tr><TH l w={130}>Magazzino</TH><TH w={90}>Totale</TH><TH w={90}>Sgusciate</TH><TH w={80}>Rottame</TH><TH w={70}>Scarti</TH><TH l>Composizione</TH><TH w={62}>M.O.</TH></tr></thead><tbody>
-          {prod.mags.map(r=><tr key={r.k}><TD l><b>{r.k}</b></TD><TD><Num v={kgD(r.tot)} b/></TD><TD><Num v={kgD(r.sgKg)}/></TD><TD><Num v={r.ro?kgD(r.ro):"—"} c={C.oT}/></TD><TD><Num v={r.sc?kgD(r.sc):"—"} c={C.r}/></TD>
-            <TD l><div style={{display:"flex",height:14,borderRadius:3,overflow:"hidden",minWidth:110}} title={"sgusciate "+r.resa.toFixed(1)+"%"}><div style={{width:(r.sgKg/(r.tot||1)*100)+"%",background:C.acc}}/><div style={{width:(r.ro/(r.tot||1)*100)+"%",background:C.o}}/><div style={{width:(r.sc/(r.tot||1)*100)+"%",background:C.r}}/></div><span style={{fontSize:11,color:C.tP}}>{r.resa.toFixed(1)}% sgusciate</span></TD>
-            <TD><Num v={r.sgKg>0?r.mo.toFixed(2)+"%":"—"} c={qCol(r.mo)}/></TD></tr>)}
+        <div style={{fontSize:13,fontWeight:800,color:C.acc,marginBottom:4}}>Composizione per stabilimento di sgusciatura</div>
+        <div style={{fontSize:11,color:C.tM,marginBottom:10}}>Quanto di ogni 100 kg prodotti esce come sgusciato, rottame o scarto. La resa sul guscio non è calcolabile finché i kg in guscio lavorati non vengono registrati.</div>
+        <table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?520:0}}><thead><tr><TH l w={130}>Magazzino</TH><TH w={90}>Totale</TH><TH w={90}>Sgusciate</TH><TH w={80}>Rottame</TH><TH w={70}>Scarti</TH><TH w={80}>% sgusc.</TH><TH w={62}>M.O.</TH></tr></thead><tbody>
+          {prod.mags.map(r=><tr key={r.k}><TD l><b>{r.k}</b></TD><TD><Num v={kgI(r.tot)} b/></TD><TD><Num v={kgI(r.sgKg)}/></TD><TD><Num v={r.ro?kgI(r.ro):"—"} c={C.oT}/></TD><TD><Num v={r.sc?kgI(r.sc):"—"} c={C.r}/></TD><TD><Num v={p1(r.quota)}/></TD><TD><Num v={r.sgKg>0?pn(r.mo):"—"} c={qCol(r.mo)}/></TD></tr>)}
         </tbody></table>
-        <div style={{display:"flex",gap:12,fontSize:11,color:C.tP,marginTop:8}}><span><span style={{display:"inline-block",width:9,height:9,background:C.acc,borderRadius:2,marginRight:4}}/>sgusciate</span><span><span style={{display:"inline-block",width:9,height:9,background:C.o,borderRadius:2,marginRight:4}}/>rottame</span><span><span style={{display:"inline-block",width:9,height:9,background:C.r,borderRadius:2,marginRight:4}}/>scarti</span></div>
       </GCard>}</>}
   </div>;
 }
-// === STORICO ===
 function StoricoPage({lotti}){
   const[dt,setDt]=useState(new Date().toISOString().split("T")[0]);
   const[ld,setLd]=useState(false);const[snap,setSnap]=useState(null);const[err,setErr]=useState("");

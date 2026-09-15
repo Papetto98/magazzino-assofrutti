@@ -492,3 +492,32 @@ SQL dati (non legati al push): `calibri_anteprima.sql` (sola lettura: da svuotar
 **Nota tecnica**: aggiunto `Fragment` all'import di React (le tabelle espandibili usano `<Fragment key=…>`).
 
 **Nessuna modifica al database.**
+
+
+---
+
+## 31. ANALISI: SGUSCIATO / SEMILAVORATI SEPARATI · VIA LE FASCE · PRODUZIONE DAL 2026
+
+**Quattro schede**: Sgusciato · Semilavorati · Produzione · Resoconto.
+
+**Sgusciato** (SGUSCIATE, ROTTAME, SCARTI) — struttura del resoconto stampato: intestazione per **tipologia** (CONVENZIONALI, BIOLOGICHE, …) e sotto una riga per **lavorazione + calibro** (Sgusciate 13/15, Rottame Ventilato, Scarti…), con kg, lotti e **tutte le qualita' medie pesate: M.O., C.O., M.V., C.V., C.E., RT**. Riga espandibile per magazzino / tipo / annata / formato. Totale per tipologia e totale generale.
+
+**Semilavorati** (TOSTATE, GRANELLA, FARINA, PASTA) — tabella separata: prodotto · calibro/variante, kg, lotti, magazzini, M.O./C.O. quando presenti; il formato si vede scegliendo "Formato" in Dettaglio per.
+
+**Fasce colorate eliminate** (davano poca informazione a fronte di molto spazio). Al loro posto una colonna **"Oltre N% M.O."** (kg e % sul totale) con **soglia scegliibile 2/4/6%**, piu' le KPI "Oltre N% di M.O." e "Oltre N% di C.O.". `grp`/`GRP` restano usati altrove (Giacenze, Dashboard).
+
+**Filtri comuni**: tipo, magazzino, annata, dettaglio, soglia. Export Excel per scheda.
+
+**Produzione**: solo **entrate reali di magazzino** registrate con l'app (movimenti ENTRATA, esclusi split e rientri ABC). Le righe "Import" dei dati caricati inizialmente sono state **eliminate**: il selettore campagna parte dal **2026** (nessuna campagna precedente selezionabile). Resta il raggruppamento mese/settimana, il dettaglio espandibile e la tabella "Composizione per stabilimento".
+
+**Nessuna modifica al database.**
+
+---
+
+## FUTURI LAVORI NON ESSENZIALI (backlog)
+
+- **Forecast sgusciatura (rimandato)**. In produzione esiste un prospetto Excel con, per settimana (S35…S49), i kg in guscio da sgusciare, i kg in guscio sgusciati, la resa % e il residuo nei silos. **Lo compila solo Soriano**; a Fabbrica non lo fanno e non e' detto che possano farlo, quindi il dato non copre tutti gli stabilimenti e per ora l'integrazione e' rimandata.
+  Se un giorno si riprende: tabella `sgusciatura` (anno, settimana, magazzino, kg guscio sgusciato, kg guscio in silos) + sezione in Produzione che calcola la **resa reale** (kg sgusciato entrati / kg guscio sgusciati) e la **previsione** (guscio residuo in silos x resa media). Restano da chiarire il significato esatto delle colonne del prospetto e la frequenza di compilazione. Senza questo dato la resa sul guscio non e' calcolabile: l'app conosce solo i kg prodotti.
+- **Valori capienza `CAP`** dei magazzini (vedi §19) e misura reale delle etichette `LABEL`.
+- **Import anagrafica clienti dal gestionale** (Excel/CSV), vedi §27.
+- **Quadratura fatture ABC** (vedi §23).
