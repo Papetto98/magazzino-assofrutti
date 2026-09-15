@@ -623,3 +623,43 @@ SQL dati (non legati al push): `calibri_anteprima.sql` (sola lettura: da svuotar
 **Assegna e Intragruppo nel pannello laterale**: nuovo componente `SidePanel` (testata, sezione "Lotti selezionati" con kg e × per togliere, corpo, barra azioni in fondo) riusato da entrambi; i due pannelli non si aprono piu' sotto la tabella. La pagina riceve `paddingRight` anche per `aMode`/`igMode`, quindi la tabella resta visibile e la selezione modificabile. In Assegna: contratti filtrati sui lotti liberi (`ctMatch`), acquirente dall'anagrafica, conferma "Assegna (N)". In Intragruppo: DDT, cliente intragruppo dall'anagrafica, avviso selezione mista.
 
 **Caratteri piu' grandi nelle tabelle**: `Tbl` 13→14,5 px (intestazioni 10→11, sotto-totali 11/12→12,5/13,5) e tabelle di Analisi (TD 13→14,5, TH 10→11). Vale per tutte le pagine che usano `Tbl`, non solo Giacenze.
+
+
+---
+
+## 31. ANALISI: SGUSCIATO / SEMILAVORATI SEPARATI · VIA LE FASCE · PRODUZIONE DAL 2026
+
+**Quattro schede**: Sgusciato · Semilavorati · Produzione · Resoconto.
+
+**Sgusciato** (SGUSCIATE, ROTTAME, SCARTI) — struttura del resoconto stampato: intestazione per **tipologia** (CONVENZIONALI, BIOLOGICHE, …) e sotto una riga per **lavorazione + calibro** (Sgusciate 13/15, Rottame Ventilato, Scarti…), con kg, lotti e **tutte le qualita' medie pesate: M.O., C.O., M.V., C.V., C.E., RT**. Riga espandibile per magazzino / tipo / annata / formato. Totale per tipologia e totale generale.
+
+**Semilavorati** (TOSTATE, GRANELLA, FARINA, PASTA) — tabella separata: prodotto · calibro/variante, kg, lotti, magazzini, M.O./C.O. quando presenti; il formato si vede scegliendo "Formato" in Dettaglio per.
+
+**Fasce colorate eliminate** (davano poca informazione a fronte di molto spazio). Al loro posto una colonna **"Oltre N% M.O."** (kg e % sul totale) con **soglia scegliibile 2/4/6%**, piu' le KPI "Oltre N% di M.O." e "Oltre N% di C.O.". `grp`/`GRP` restano usati altrove (Giacenze, Dashboard).
+
+**Filtri comuni**: tipo, magazzino, "Apri le righe per" (ex "Dettaglio per": decide il contenuto delle sotto-righe quando si espande una riga — rinominato perche' sembrava non fare nulla finche' non si apriva una riga; accanto c'e' il bottone Apri tutte / Chiudi tutte e la riga aperta mostra "▲ <criterio>"), soglia. Export Excel per scheda. **Niente filtro Annata locale**: l'annata la decide il selettore **Campagna** della barra laterale (la pagina riceve `lottiF`, gia' filtrato) — un secondo filtro sembrava rotto perche' mostrava solo l'annata gia' selezionata. Sotto il titolo una riga dice quali annate si stanno guardando e rimanda al selettore Campagna; per confrontare piu' annate si sceglie "Annata" in Dettaglio per (con Campagna su "Tutte").
+
+**Produzione**: solo **entrate reali di magazzino** registrate con l'app (movimenti ENTRATA, esclusi split e rientri ABC). Le righe "Import" dei dati caricati inizialmente sono state **eliminate**: il selettore campagna parte dal **2026** (nessuna campagna precedente selezionabile). Resta il raggruppamento mese/settimana, il dettaglio espandibile e la tabella "Composizione per stabilimento".
+  Filtri rivisti: la **campagna segue il selettore globale** quando e' su un'annata dal 2026 in poi (niente doppio selettore: la pagina riceve `campagna={annata}`); con Campagna su "Tutte" compare il selettore locale; con un'annata precedente al 2026 compare un avviso e si vede la 2026. Il filtro Magazzino esclude **ABC Service** (non e' uno stabilimento di sgusciatura, e i rientri sono gia' esclusi) e "Dettaglio per" non offre piu' Lavorazione (sgusciate/rottame/scarti sono gia' colonne).
+
+**Nessuna modifica al database.**
+
+---
+
+## FUTURI LAVORI NON ESSENZIALI (backlog)
+
+- **Forecast sgusciatura (rimandato)**. In produzione esiste un prospetto Excel con, per settimana (S35…S49), i kg in guscio da sgusciare, i kg in guscio sgusciati, la resa % e il residuo nei silos. **Lo compila solo Soriano**; a Fabbrica non lo fanno e non e' detto che possano farlo, quindi il dato non copre tutti gli stabilimenti e per ora l'integrazione e' rimandata.
+  Se un giorno si riprende: tabella `sgusciatura` (anno, settimana, magazzino, kg guscio sgusciato, kg guscio in silos) + sezione in Produzione che calcola la **resa reale** (kg sgusciato entrati / kg guscio sgusciati) e la **previsione** (guscio residuo in silos x resa media). Restano da chiarire il significato esatto delle colonne del prospetto e la frequenza di compilazione. Senza questo dato la resa sul guscio non e' calcolabile: l'app conosce solo i kg prodotti.
+- **Valori capienza `CAP`** dei magazzini (vedi §19) e misura reale delle etichette `LABEL`.
+- **Import anagrafica clienti dal gestionale** (Excel/CSV), vedi §27.
+- **Quadratura fatture ABC** (vedi §23).
+
+**Colonne qualità ridotte (Giacenze e Analisi › Sgusciato)**: di default restano **M.O. e C.O.** (piu' la colonna oltre-soglia in Analisi); RT, M.V., C.V., C.E. si mostrano con il bottone "Colonne qualità" e la scelta e' ricordata nel browser (`localStorage af_qfull`, stessa preferenza per le due pagine). Motivo: le tabelle erano troppo larghe e le colonne meno usate rubavano spazio a kg, lotto e magazzino. Gli export Excel restano completi.
+
+**Assegna (Giacenze) — acquirente dall'anagrafica**: il campo "Oppure acquirente" ora suggerisce i clienti attivi dell'anagrafica (`findPartner` per il riconoscimento, avviso "✓ anagrafica: …" oppure "non in anagrafica: verra' salvato come testo"). Il nome scelto viene salvato in `lotti.acquirente` con la grafia dell'anagrafica, cosi' l'estratto per cliente lo aggancia. Resta possibile scrivere un nome libero.
+
+**Assegna e Intragruppo nel pannello laterale**: nuovo componente `SidePanel` (testata, sezione "Lotti selezionati" con kg e × per togliere, corpo, barra azioni in fondo) riusato da entrambi; i due pannelli non si aprono piu' sotto la tabella. La pagina riceve `paddingRight` anche per `aMode`/`igMode`, quindi la tabella resta visibile e la selezione modificabile. In Assegna: contratti filtrati sui lotti liberi (`ctMatch`), acquirente dall'anagrafica, conferma "Assegna (N)". In Intragruppo: DDT, cliente intragruppo dall'anagrafica, avviso selezione mista.
+
+**Caratteri piu' grandi nelle tabelle**: `Tbl` 13→14,5 px (intestazioni 10→11, sotto-totali 11/12→12,5/13,5) e tabelle di Analisi (TD 13→14,5, TH 10→11). Vale per tutte le pagine che usano `Tbl`, non solo Giacenze.
+
+**Barra di selezione**: era `sticky bottom:0` attaccata alle righe e restava visibile anche con un pannello aperto (informazioni doppie). Ora e' staccata (`sticky bottom:10`, card bianca con bordo accento e ombra) e **scompare quando un pannello laterale e' aperto**; le medie pesate (M.O., C.O., M.V., C.V., C.E., RT) sono mostrate nel pannello, sotto l'elenco dei lotti selezionati, sia in `SidePanel` (assegna/intragruppo) sia in `AzionePanel` (uscita/trasferimento).
