@@ -725,3 +725,16 @@ Nota: i valori di calibro legacy ("ROTT.SGUSCIATRICE" e simili) restano nei dati
 **KPI "Venduto Intragruppo" tolta dalla Dashboard**: con il filtro Merce rimosso, il clic non portava piu' alla giacenza intragruppo ma all'elenco completo. Rimossi anche i calcoli `totIG`/`nIG` della Dashboard e la briciola "Dashboard / Venduto intragruppo" in cima a Giacenze, ormai orfana. In **Storico (giacenza a una data)** la KPI "Venduto Intragruppo" resta: li' e' solo informativa, senza clic.
 
 **Riga "Campagna AAAA" in Giacenze**: ora **bloccata in alto** mentre si scorre (sticky sulle celle — su `<tr>` i browser non applicano `position:sticky` — `top:36`, sotto l'intestazione della tabella) e resta finche' non arriva l'annata successiva. Contrasto pieno: sfondo accento e testo bianco, con ombra.
+
+
+---
+
+## 35. PAGINA RICERCA ELIMINATA · RICERCA IN GIACENZE E LOTTI
+
+`RicercaPage` rimossa (componente, rotta `case"ricerca"` e voce di menu): faceva una cosa sola — filtro testuale sui lotti disponibili — su una pagina a parte, senza i filtri e le azioni di Giacenze.
+
+**Giacenze**: nuovo campo **"Cerca · Lotto, big bag, cliente…"** (`fQ`, primo gruppo della barra filtri). Cerca su lotto, imballo, tipo, lavorazione, calibro, magazzino, acquirente e contratto, senza distinzione fra maiuscole e minuscole; si combina con tutti gli altri filtri, entra nei totali e nella selezione, ed e' azzerato da "Pulisci".
+
+**Lotti**: il campo "Cerca lotto" (che guardava solo lotto e imballo) diventa **"Cerca"** e usa gli stessi campi di Giacenze. Qui la ricerca copre anche i lotti esauriti, che in Giacenze non compaiono: e' il posto giusto per ritrovare un big bag gia' uscito.
+
+Nessuna modifica al database.
