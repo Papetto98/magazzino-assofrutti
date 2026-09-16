@@ -676,3 +676,18 @@ Soluzione in `Tbl`: le colonne accettano ora `max: <px>`. Il contenuto viene mes
 Larghezze impostate in Giacenze: Lav. 110, Cal. 104, Lotto 150, Imballo 118. Le altre colonne restano automatiche. Nessun dato viene perso: export Excel e stampa non sono toccati.
 
 Nota: i valori di calibro legacy ("ROTT.SGUSCIATRICE" e simili) restano nei dati; `calibri_anteprima.sql` li elenca tra i "da correggere a mano" (vedi §28).
+
+
+---
+
+## 33. CAMPAGNA (CROP) SUL CONTRATTO + AVVISO NON BLOCCANTE
+
+**Dato nuovo**: `contratti.anno_raccolta` (integer, NULL = contratto valido per qualsiasi annata). SQL: `contratti_campagna.sql` — **eseguire PRIMA del push**; lo script stampa anche, per ogni contratto esistente, le annate dei lotti gia' assegnati e contiene (commentato) l'update per impostare in blocco la campagna dove i lotti sono di una sola annata.
+
+**Pagina Contratti**: campo "Campagna (crop)" nel form (opzioni: qualsiasi annata + annate presenti nei lotti + campagna corrente ±1; default campagna corrente), colonna "Campagna" nell'elenco ("qualsiasi" se vuota).
+
+**Controllo alla selezione**: `cropOf(l)` = `anno_raccolta` con fallback su `anno`; `cropWarn(contratto, lotti)` restituisce quanti lotti hanno una campagna diversa e quali. **Segnala, non blocca** (scelta esplicita: capita di coprire un contratto con merce di un'altra annata):
+- **Assegna** (pannello laterale): riquadro arancione "Campagna diversa: il contratto X e' per il crop AAAA, N lotti sono del BBBB. Puoi assegnarli lo stesso"; il bottone resta attivo.
+- **Uscita** (AzionePanel): stesso avviso sotto la scheda del contratto; la conferma resta possibile.
+- La campagna del contratto compare nei suggerimenti ("… · crop 2026 · residuo … kg") e nella scheda del contratto scelto.
+- `ctMatch` (tipo/lavorazione/calibro) resta il filtro **bloccante**; la campagna **non** entra in `ctMatch`, altrimenti i contratti di altra annata sparirebbero dall'elenco invece di essere segnalati.
