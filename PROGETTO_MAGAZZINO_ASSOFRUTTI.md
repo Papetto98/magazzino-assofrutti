@@ -707,3 +707,21 @@ Nota: i valori di calibro legacy ("ROTT.SGUSCIATRICE" e simili) restano nei dati
 **Viste Proprieta'/Fisica eliminate ovunque**: filtro "Merce" in Giacenze (e banner "lotti nascosti dal filtro Merce"), interruttore Fisica/Proprieta' della Dashboard, selettore "Vista" del Resoconto e dello Storico a una data. Ogni pagina mostra ora **tutta la merce in magazzino**; l'intragruppo si riconosce dal badge sulla riga e dalla KPI dedicata in Dashboard. Il resoconto mantiene la colonna "+ Intragruppo" quando ci sono lotti intragruppo.
 
 **Riga "Campagna AAAA" in Giacenze**: ora **bloccata in alto** mentre si scorre (sticky sulle celle — su `<tr>` i browser non applicano `position:sticky` — `top:36`, sotto l'intestazione della tabella) e resta finche' non arriva l'annata successiva. Contrasto pieno: sfondo accento e testo bianco, con ombra.
+
+
+---
+
+## 34. VIA IL CONTO LAVORO E LE VISTE PROPRIETA'/FISICA · CAMPAGNA BLOCCATA IN GIACENZE
+
+**Conto lavoro eliminato dall'app** (la colonna `lotti.conto_lavoro` resta nel DB, nessun dato cancellato):
+- Entrata: tolta la spunta "Merce in conto lavoro" e la tendina Committente; i nuovi lotti non scrivono piu' `conto_lavoro`/`partner_id` per questo motivo.
+- Lotti: "Stato merce" ora e' solo *Di proprieta* / *Venduto intragruppo*; filtro Merce idem.
+- Dashboard: via la KPI "Conto Lavoro". Storico (giacenza a una data): via la KPI e la colonna C/Lav. dell'export. Resoconto PDF/Excel: via la colonna "+ Conto lavoro" e la colonna "Conto lavoro" del dettaglio.
+- Via il badge **C/LAV** da tutte le tabelle e i pannelli. Resta **INTRAGR.** come unico segnale sulla riga del lotto.
+- **Conseguenza**: i lotti gia' marcati conto lavoro (import ASSOBIO 2024, ~10.950 kg) ora rientrano nei totali come merce di proprieta'. `conto_lavoro_check.sql` (sola lettura) elenca quelli ancora attivi con i kg; in fondo le due strade se non devono restare nei totali (uscita normale, oppure azzerare il flag).
+
+**Viste Proprieta'/Fisica eliminate ovunque**: filtro "Merce" in Giacenze (e banner "lotti nascosti dal filtro Merce"), interruttore Fisica/Proprieta' della Dashboard, selettore "Vista" del Resoconto e dello Storico a una data. Ogni pagina mostra ora **tutta la merce in magazzino**; l'intragruppo si riconosce dal badge sulla riga. Il resoconto mantiene la colonna "+ Intragruppo" quando ci sono lotti intragruppo.
+
+**KPI "Venduto Intragruppo" tolta dalla Dashboard**: con il filtro Merce rimosso, il clic non portava piu' alla giacenza intragruppo ma all'elenco completo. Rimossi anche i calcoli `totIG`/`nIG` della Dashboard e la briciola "Dashboard / Venduto intragruppo" in cima a Giacenze, ormai orfana. In **Storico (giacenza a una data)** la KPI "Venduto Intragruppo" resta: li' e' solo informativa, senza clic.
+
+**Riga "Campagna AAAA" in Giacenze**: ora **bloccata in alto** mentre si scorre (sticky sulle celle — su `<tr>` i browser non applicano `position:sticky` — `top:36`, sotto l'intestazione della tabella) e resta finche' non arriva l'annata successiva. Contrasto pieno: sfondo accento e testo bianco, con ombra.
